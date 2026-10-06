@@ -1,0 +1,4 @@
+# interpretable baseline: logistic regression on engineered temporal features
+architecture: logreg
+l2: 1.0
+seed: 101

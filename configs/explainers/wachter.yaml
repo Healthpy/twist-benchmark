@@ -1,0 +1,4 @@
+name: WachterReference
+seed: 503
+regime: R0
+params: {steps: 300, lambda_prox: 0.05, lr: 0.05}

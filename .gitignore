@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated artifacts (keep directory skeleton; frozen paper results are added explicitly)
+artifacts/**
+!artifacts/**/
+!artifacts/**/.gitkeep
+
+# Containers
+*.sif
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+184_Does_the_World_Agree_A_Mod.pdf
+
+
+# SLURM job logs
+logs/

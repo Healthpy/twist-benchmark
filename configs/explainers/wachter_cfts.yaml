@@ -1,0 +1,5 @@
+# cfts library defaults unless noted; see docs/compatibility_matrix.md
+name: Wachter
+seed: 501
+regime: R1
+params: {max_cfs: 1000, distance: euclidean}

@@ -1,0 +1,7 @@
+# Metric sanity report: the control suite on one small world per family.
+name: metric_sanity
+base: experiments/controls.yaml
+worlds:
+  - worlds/linear_toy.yaml
+  - worlds/nonlinear_toy.yaml
+  - worlds/spring_toy.yaml

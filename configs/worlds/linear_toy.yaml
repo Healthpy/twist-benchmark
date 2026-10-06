@@ -1,0 +1,18 @@
+# Small LinearSCM-T world for the Week-1 toy run (fast on CPU). Rescaled to an exact spectral
+# radius so single-slice actions at t0 ∈ {T/2, 3T/4} still reach the terminal label.
+family: linear
+world_id: linear_toy_seed_000
+seed: 0
+n_samples: 2000
+train_frac: 0.8
+params: {k: 5, L: 1, T: 40, density: 0.3, spectral_radius: 0.95, rescale: exact}
+noise: {kind: laplace, scale: 0.1}
+label: {channel: 0, t_label: -1}   # terminal threshold, median split on the training split
+# Action space: every channel actionable, set values bounded, plus one high-level control that
+# drives x1 and x2 one step later (x0, the label channel, depends on both).
+action_space:
+  lower: -5.0
+  upper: 5.0
+  controls:
+    u_drive: {loadings: [0.0, 1.0, 0.5, 0.0, 0.0], delay: 1, lower: -3.0, upper: 3.0,
+              unit: a.u., description: exogenous drive on x1 and x2}

@@ -1,0 +1,8 @@
+# Small NlinearSCM-T world for control-suite and sanity runs.
+family: nonlinear
+world_id: nlinear_toy_seed_000
+seed: 0
+n_samples: 2000
+params: {k: 5, L: 1, T: 40, density: 0.3}
+noise: {kind: laplace, scale: 0.1}
+label: {channel: 0, t_label: -1}

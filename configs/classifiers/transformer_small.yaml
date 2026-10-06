@@ -1,0 +1,8 @@
+architecture: transformer
+hidden: 32
+layers: 2
+heads: 4
+epochs: 8
+lr: 0.003
+batch_size: 128
+seed: 101

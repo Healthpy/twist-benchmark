@@ -1,0 +1,8 @@
+# Negative control: minimal-budget targeted L-inf PGD (trajectory only). Each unit gets the
+# smallest per-entry budget (× channel std) in the ladder that flips the classifier. The ladder
+# reaches 4 std because robust classifiers (e.g. spring) need large edits to flip; the control
+# tests "model-valid but not mechanism-consistent", not edit size (decision log, Week 3 item 5).
+name: AdversarialTrajectoryEdit
+seed: 508
+regime: R0
+params: {epsilons: [0.1, 0.25, 0.5, 1.0, 2.0, 4.0], steps: 100}

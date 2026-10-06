@@ -1,0 +1,6 @@
+# Negative control: native point action optimised under a misspecified mechanism (same graph,
+# strengths perturbed by 0.5 × their spread). Plausible-looking, wrongly propagated.
+name: PlausibleButMechanismWrongEdit
+seed: 509
+regime: R5
+params: {rel_scale: 0.5, t0_fracs: [0.5, 0.75], steps: 200, lambda_pred: 1.0, lambda_prox: 0.1, lr: 0.05}

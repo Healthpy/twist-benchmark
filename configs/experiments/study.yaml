@@ -1,0 +1,44 @@
+# Week-8 pilot multi-world study (plan §Week 8, task 5): 5 worlds/family × 2 classifiers × 100 factual
+# units × 3 seeds per stochastic explainer; 5 methods + controls. Suite twist_pilot_v1 has a fresh
+# seed, so its worlds are independent of the worlds used for Weeks 5–7 tuning. CONFETTI and M-CELS
+# are excluded for cost (5–30 min per 50 units in the Week-5 pilot). Acceptance checks and control
+# conditions are fixed in twist.evaluation.study before running.
+name: study_week8
+output_dir: artifacts/studies
+suite: artifacts/suites/twist_pilot_v1
+worlds: [linear_dev_000, linear_dev_001, linear_dev_002, linear_dev_003, linear_dev_004,
+         nonlinear_dev_000, nonlinear_dev_001, nonlinear_dev_002, nonlinear_dev_003, nonlinear_dev_004,
+         spring_dev_000, spring_dev_001, spring_dev_002, spring_dev_003, spring_dev_004,
+         regime_dev_000, regime_dev_001, regime_dev_002, regime_dev_003, regime_dev_004,
+         statespace_dev_000, statespace_dev_001, statespace_dev_002, statespace_dev_003, statespace_dev_004]
+classifiers: [classifiers/gru_small.yaml, classifiers/tcn_small.yaml]
+explainers:
+  # methods
+  - explainers/wachter_cfts.yaml
+  - explainers/comte.yaml
+  - explainers/native_guide.yaml
+  - explainers/latent_cf.yaml
+  - explainers/nun.yaml
+  # controls
+  - explainers/pearl_control.yaml
+  - explainers/full_schedule_oracle.yaml
+  - name: OracleActionRecourse
+    regime: R6
+    params: {steps: 200, t0_fracs: [0.5, 0.75, 0.9], duration: 3, lambda_prox: 0.1, lr: 0.05,
+             label: OracleActionRecourse}
+  - explainers/abstain_control.yaml
+  - explainers/adversarial_edit.yaml
+  - explainers/plausible_wrong.yaml
+explainer_seeds: [501, 502, 503]
+n_factuals: 100
+target: 1
+jobs: 16
+certificates: 1
+reference: NUN
+n_boot: 1000
+budget: {max_queries: 200000, time_limit_s: 120, max_reference: 500}
+evaluation:
+  readings: [first_change_atomic, full_changed_schedule]
+  compute_dtw: false
+  constraints:
+  - {name: amplitude_bounds, max_abs: 3.0}

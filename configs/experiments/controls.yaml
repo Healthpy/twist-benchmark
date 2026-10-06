@@ -1,0 +1,25 @@
+# Positive/negative structural control suite (Week 3). Used by the metric sanity report, which
+# swaps in each world listed in experiments/sanity.yaml.
+name: controls
+output_dir: artifacts
+evaluation_seed: 9001
+world: worlds/linear_toy.yaml
+classifier: classifiers/gru_small.yaml
+explainers:
+  - explainers/pearl_control.yaml
+  - explainers/noiseless_control.yaml
+  - explainers/full_schedule_oracle.yaml
+  - explainers/adversarial_edit.yaml
+  - explainers/plausible_wrong.yaml
+  - explainers/abstain_control.yaml
+n_factuals: 20
+target: 1
+certificates: 1
+evaluation:
+  readings: [first_change_atomic, full_changed_schedule]
+  change_tol: 1.0e-3
+  faith_tol: 1.0e-3
+  soft_sigma: 1.0
+  constraints:
+    - {name: amplitude_bounds, max_abs: 3.0}
+    - {name: min_lead_time, t_label: 39, min_lead: 1}

@@ -1,0 +1,27 @@
+# End-to-end toy run: one linear world, one small classifier, structural controls with point,
+# interval and high-level-control native actions, one trajectory-only baseline read under all
+# registered readings, A/B/C, explanation certificates.
+name: toy_linear
+output_dir: artifacts
+evaluation_seed: 9001
+world: worlds/linear_toy.yaml
+classifier: classifiers/gru_small.yaml
+explainers:
+  - explainers/pearl_control.yaml
+  - explainers/noiseless_control.yaml
+  - explainers/pearl_control_interval.yaml
+  - explainers/pearl_control_highlevel.yaml
+  - explainers/wachter.yaml
+  - explainers/abstain_control.yaml
+n_factuals: 20
+target: 1
+certificates: 1
+evaluation:
+  readings: [first_change_atomic, first_changed_segment, sparse_segmentation,
+             change_point_pulse_fit, full_changed_schedule]
+  change_tol: 1.0e-3
+  faith_tol: 1.0e-3
+  soft_sigma: 1.0
+  constraints:
+    - {name: amplitude_bounds, max_abs: 3.0}
+    - {name: min_lead_time, t_label: 39, min_lead: 1}

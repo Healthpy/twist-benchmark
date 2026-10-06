@@ -1,0 +1,30 @@
+# Week-5 pilot (plan §Week 5, task 5): 3 worlds × 2 classifiers × 5 baselines (+ retrieval,
+# generative and structural controls) × 50 factual units × 3 seeds per stochastic explainer.
+# Worlds: the first dev world of each draft family with a threshold label (rule fixed before running).
+name: pilot_week5
+output_dir: artifacts/pilots
+suite: artifacts/suites/twist_dev_v1
+worlds: [linear_dev_001, nonlinear_dev_000, spring_dev_000]
+classifiers: [classifiers/gru_small.yaml, classifiers/tcn_small.yaml]
+explainers:
+  - explainers/wachter_cfts.yaml
+  - explainers/comte.yaml
+  - explainers/mcels.yaml
+  - explainers/confetti.yaml
+  - explainers/native_guide.yaml
+  - explainers/latent_cf.yaml
+  - explainers/nun.yaml
+  - explainers/pearl_control.yaml
+  - explainers/noiseless_control.yaml
+  - explainers/full_schedule_oracle.yaml
+  - explainers/abstain_control.yaml
+explainer_seeds: [501, 502, 503]
+n_factuals: 50
+target: 1
+jobs: 6
+certificates: 1
+budget: {max_queries: 200000, time_limit_s: 120, max_reference: 500}
+evaluation:
+  readings: [first_change_atomic, first_changed_segment, sparse_segmentation,
+             change_point_pulse_fit, full_changed_schedule]
+  compute_dtw: false

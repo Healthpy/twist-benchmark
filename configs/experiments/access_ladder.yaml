@@ -1,0 +1,291 @@
+# Week-6 mechanism-access ladder (plan §Week 6): one action-recourse optimizer at R2 (graph only),
+# R3 (true graph, fitted parameters), R4 (Lasso VAR / neural estimate), R5 (oracle) and R6 (oracle +
+# action model + constraints), next to trajectory baselines at R0/R1 and the Pearl control, plus a
+# controlled misspecification sweep (coefficients / deleted edges / delay at 0.25, 0.5, 1.0).
+# Worlds: the three Week-5 pilot worlds. Acceptance thresholds: twist.evaluation.ladder_report.
+# Start-time candidates {0.5, 0.75, 0.9}·T for every recourse rung (changed after the first run: with
+# {0.5, 0.75}·T no bounded action reaches the label in contractive worlds; see decision log, Week 6).
+name: access_ladder_week6
+output_dir: artifacts/ladders
+suite: artifacts/suites/twist_dev_v1
+worlds:
+- linear_dev_001
+- nonlinear_dev_000
+- spring_dev_000
+classifiers:
+- classifiers/gru_small.yaml
+explainers:
+- name: WachterReference
+  regime: R0
+  params:
+    steps: 300
+- name: NUN
+  regime: R1
+- name: COMTE
+  regime: R1
+- name: GraphActionRecourse
+  regime: R2
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R2 graph]
+- name: EstimatedActionRecourse
+  regime: R3
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R3 masked]
+  mechanism:
+    estimator: masked
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 lasso]
+  mechanism:
+    estimator: lasso
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 neural]
+  mechanism:
+    estimator: neural
+    epochs: 40
+- name: EstimatedActionRecourse
+  regime: R5
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R5 oracle]
+- name: PearlSCMRecourse
+  regime: R5
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+- name: OracleActionRecourse
+  regime: R6
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 misspec 0]
+  mechanism:
+    misspecify:
+      kind: coefficients
+      level: 0.0
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 coefficients 0.25]
+  mechanism:
+    misspecify:
+      kind: coefficients
+      level: 0.25
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 coefficients 0.5]
+  mechanism:
+    misspecify:
+      kind: coefficients
+      level: 0.5
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 coefficients 1]
+  mechanism:
+    misspecify:
+      kind: coefficients
+      level: 1.0
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delete_edges 0.25]
+  mechanism:
+    misspecify:
+      kind: delete_edges
+      level: 0.25
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delete_edges 0.5]
+  mechanism:
+    misspecify:
+      kind: delete_edges
+      level: 0.5
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delete_edges 1]
+  mechanism:
+    misspecify:
+      kind: delete_edges
+      level: 1.0
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delay 0.25]
+  mechanism:
+    misspecify:
+      kind: delay
+      level: 0.25
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delay 0.5]
+  mechanism:
+    misspecify:
+      kind: delay
+      level: 0.5
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 delay 1]
+  mechanism:
+    misspecify:
+      kind: delay
+      level: 1.0
+explainer_seeds:
+- 501
+n_factuals: 50
+target: 1
+jobs: 3
+certificates: 1
+budget:
+  max_queries: 200000
+  time_limit_s: 120
+  max_reference: 500
+evaluation:
+  readings:
+  - first_change_atomic
+  compute_dtw: false
+  constraints:
+  - name: amplitude_bounds
+    max_abs: 3.0
+  - name: min_lead_time
+    t_label: 49
+    min_lead: 1

@@ -1,0 +1,36 @@
+# Small development suite: 2 worlds per family and split (40 worlds), fast to build and check.
+name: twist_dev_v1
+seed: 2026
+output_dir: artifacts/suites
+families: [linear, nonlinear, spring, regime, statespace]
+worlds_per_split: {dev: 2, val: 2, test: 2, challenge: 2}
+k: 6
+T: 50
+n_samples: 1000
+train_frac: 0.8
+max_attempts: 6
+hidden: [test, challenge]
+pools:
+  # dev/val/test: the standard regime of the benchmark
+  standard:
+    lag: [L1, L3]
+    density: [sparse, moderate, dense]
+    strength: [weak, medium, strong]
+    stability: [contractive, weakly_stable]
+    noise: [gaussian, laplace]
+    label: [terminal, interior, exposure, onset, multi]
+    regime_driver: [state, exogenous]
+    state_family: [linear, nonlinear, spring, regime]
+    observation: [noisy]   # identity would duplicate the exact families
+    missingness: [none]
+    sampling: [regular]
+    confounding: [none]
+  # challenge: out-of-pool shifts and partial observability (plan §Week 4, task 5)
+  challenge:
+    lag: [L5]
+    stability: [oscillatory]
+    noise: [heteroscedastic, correlated]
+    observation: [noisy, nonlinear, partial]
+    missingness: [mcar, block]
+    sampling: [regular, irregular]
+    confounding: [none, latent]

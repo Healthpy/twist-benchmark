@@ -1,0 +1,37 @@
+# Full suite with the plan's sizes (§Week 4, task 5): 10/10/20/10 worlds per family = 250 worlds.
+# Build on a compute node (scripts/slurm/build_suite.sbatch); set TWIST_SUITE_SECRET for real hiding.
+name: twist_v1
+seed: 2026
+output_dir: artifacts/suites
+families: [linear, nonlinear, spring, regime, statespace]
+worlds_per_split: {dev: 10, val: 10, test: 20, challenge: 10}
+k: 10
+T: 100
+n_samples: 5000
+train_frac: 0.8
+max_attempts: 6
+hidden: [test, challenge]
+pools:
+  # dev/val/test: the standard regime of the benchmark
+  standard:
+    lag: [L1, L3]
+    density: [sparse, moderate, dense]
+    strength: [weak, medium, strong]
+    stability: [contractive, weakly_stable]
+    noise: [gaussian, laplace]
+    label: [terminal, interior, exposure, onset, multi]
+    regime_driver: [state, exogenous]
+    state_family: [linear, nonlinear, spring, regime]
+    observation: [noisy]   # identity would duplicate the exact families
+    missingness: [none]
+    sampling: [regular]
+    confounding: [none]
+  # challenge: out-of-pool shifts and partial observability (plan §Week 4, task 5)
+  challenge:
+    lag: [L5]
+    stability: [oscillatory]
+    noise: [heteroscedastic, correlated]
+    observation: [noisy, nonlinear, partial]
+    missingness: [mcar, block]
+    sampling: [regular, irregular]
+    confounding: [none, latent]

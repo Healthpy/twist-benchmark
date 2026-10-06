@@ -1,0 +1,6 @@
+# Native interval do() control: do(X_{t0:t0+3} = x + θ) on all actionable channels.
+name: PearlSCMRecourse
+seed: 505
+regime: R5
+params: {action_form: interval, duration: 3, t0_fracs: [0.5, 0.75], steps: 200,
+         lambda_pred: 1.0, lambda_prox: 0.1, lr: 0.05}

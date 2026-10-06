@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      TWIST_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install (CPU torch)
+        run: |
+          uv venv --python 3.11 .venv
+          uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -e ".[dev,baselines]"
+      - name: Lint
+        run: make lint
+      - name: Type check
+        run: make typecheck
+      - name: Tests (unit + deterministic-seed + artifact-schema smoke)
+        run: make test
+      - name: Toy run
+        run: make toy

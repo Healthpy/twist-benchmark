@@ -1,0 +1,6 @@
+# Positive control for replay, negative control for compactness: imposes the nearest training
+# trajectory with world label = target on every timestep (oracle labels, R5).
+name: FullScheduleOracle
+seed: 507
+regime: R5
+params: {t_start_frac: 0.0}

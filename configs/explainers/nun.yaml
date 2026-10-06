@@ -1,0 +1,5 @@
+# in-house retrieval baseline (nearest unlike neighbour)
+name: NUN
+seed: 501
+regime: R1
+params: {}

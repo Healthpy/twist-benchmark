@@ -1,0 +1,8 @@
+# Small SpringSCM-T world (3 particles → 6 channels, one exogenous particle).
+family: spring
+world_id: spring_toy_seed_000
+seed: 0
+n_samples: 2000
+params: {n_particles: 3, T: 40, density: 0.5, n_exogenous: 1}
+noise: {kind: laplace, scale: 0.1}
+label: {channel: 0, t_label: -1}

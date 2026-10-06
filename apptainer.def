@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: python:3.11-slim
+
+%files
+    pyproject.toml /opt/twist/pyproject.toml
+    README.md /opt/twist/README.md
+    src /opt/twist/src
+    configs /opt/twist/configs
+    scripts /opt/twist/scripts
+    tests /opt/twist/tests
+    Makefile /opt/twist/Makefile
+
+%post
+    cd /opt/twist
+    pip install --no-cache-dir -e ".[dev]"
+
+%environment
+    export TWIST_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
+    export PYTHONDONTWRITEBYTECODE=1
+
+%runscript
+    cd /opt/twist && exec python -m twist.cli "$@"
+
+%labels
+    Description TWIST benchmark (GPU-capable torch wheels from PyPI)

@@ -1,0 +1,37 @@
+# Week-8 pilot study suite: 5 visible dev worlds per family (25 worlds), 1500 units each so that
+# every world × classifier has ≥ 100 flip candidates in the 300-unit test split.
+name: twist_pilot_v1
+seed: 2108   # fresh seed: worlds independent of twist_dev_v1 (used for Weeks 5–7 tuning)
+output_dir: artifacts/suites
+families: [linear, nonlinear, spring, regime, statespace]
+worlds_per_split: {dev: 5}
+k: 6
+T: 50
+n_samples: 1500
+train_frac: 0.8
+max_attempts: 6
+hidden: [test, challenge]
+pools:
+  # dev/val/test: the standard regime of the benchmark
+  standard:
+    lag: [L1, L3]
+    density: [sparse, moderate, dense]
+    strength: [weak, medium, strong]
+    stability: [contractive, weakly_stable]
+    noise: [gaussian, laplace]
+    label: [terminal, interior, exposure, onset, multi]
+    regime_driver: [state, exogenous]
+    state_family: [linear, nonlinear, spring, regime]
+    observation: [noisy]   # identity would duplicate the exact families
+    missingness: [none]
+    sampling: [regular]
+    confounding: [none]
+  # challenge: out-of-pool shifts and partial observability (plan §Week 4, task 5)
+  challenge:
+    lag: [L5]
+    stability: [oscillatory]
+    noise: [heteroscedastic, correlated]
+    observation: [noisy, nonlinear, partial]
+    missingness: [mcar, block]
+    sampling: [regular, irregular]
+    confounding: [none, latent]

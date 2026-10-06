@@ -1,0 +1,5 @@
+# cfts library defaults unless noted; see docs/compatibility_matrix.md
+name: M-CELS
+seed: 501
+regime: R1
+params: {max_itr: 1000, lr: 0.001}

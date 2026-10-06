@@ -1,0 +1,112 @@
+# Week-7 robustness, uncertainty and action-sensitivity study (plan §Week 7).
+# Pilot worlds; GRU; trajectory baselines (cfts + NUN + Latent-CF) and action-native recourse at R4/R5/R6.
+# M-CELS is excluded for cost (~7 s/unit). Shifts, amounts, ensemble and tolerance grid are fixed here,
+# before running; acceptance thresholds live in twist.evaluation.robustness.
+name: robustness_week7
+output_dir: artifacts/robustness
+suite: artifacts/suites/twist_dev_v1
+worlds:
+- linear_dev_001
+- nonlinear_dev_000
+- spring_dev_000
+classifiers:
+- classifiers/gru_small.yaml
+explainers:
+- explainers/wachter_cfts.yaml
+- explainers/comte.yaml
+- explainers/confetti.yaml
+- explainers/native_guide.yaml
+- explainers/latent_cf.yaml
+- explainers/nun.yaml
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: &id001
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    uncertainty_samples: 16
+    label: ActionRecourse[R4 lasso]
+  mechanism:
+    estimator: lasso
+- name: PearlSCMRecourse
+  regime: R5
+  params:
+    steps: 200
+    t0_fracs:
+    - 0.5
+    - 0.75
+    - 0.9
+    uncertainty_samples: 16
+- name: OracleActionRecourse
+  regime: R6
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    uncertainty_samples: 16
+explainer_seeds:
+- 501
+- 502
+n_factuals: 50
+shift_factuals: 30
+target: 1
+jobs: 16
+certificates: 1
+perturb_scale: 0.05
+ensemble_size: 8
+ensemble_rel_scale: 0.25
+n_boot: 1000
+taus:
+- 1.0e-05
+- 0.0001
+- 0.001
+- 0.01
+- 0.1
+shifts:
+- level: innovation
+  kind: uniform
+- level: innovation
+  kind: heteroscedastic
+  amount: 1.0
+- level: mechanism
+  kind: coefficients
+  amount: 0.25
+- level: mechanism
+  kind: delay
+  amount: 0.5
+- level: mechanism
+  kind: delete_edges
+  amount: 0.25
+- level: observation
+  kind: noise
+  amount: 0.2
+- level: observation
+  kind: mcar
+  amount: 0.2
+- level: decision
+  kind: threshold
+  amount: 0.25
+- level: decision
+  kind: retrain
+budget:
+  max_queries: 200000
+  time_limit_s: 120
+  max_reference: 500
+evaluation:
+  readings:
+  - first_change_atomic
+  compute_dtw: false
+  interventional_samples: 16
+  constraints:
+  - name: amplitude_bounds
+    max_abs: 3.0
+  - name: min_lead_time
+    t_label: 49
+    min_lead: 1

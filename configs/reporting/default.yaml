@@ -1,0 +1,7 @@
+# Reporting rule (plan WP3): never report A−C without A, B, C, the action reading, D,
+# feasibility, and the scorable denominator.
+main_table_columns: [explainer, reading, validity, cf_faith_noiseless, cf_faith_pearl, D_pearl,
+  proposal_model_success, replay_model_success, replay_world_success, delta_traj, delta_outcome,
+  delta_total, feasible_rate, median_label_distance, n_scorable, n_abstain]
+float_format: "{:.3f}"
+suppress_shift_vr_below: 0.30

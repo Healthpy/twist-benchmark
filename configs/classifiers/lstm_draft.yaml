@@ -1,0 +1,7 @@
+architecture: lstm
+hidden: 64
+layers: 1
+epochs: 20
+lr: 0.001
+batch_size: 128
+seed: 101

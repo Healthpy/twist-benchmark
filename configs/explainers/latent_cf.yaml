@@ -1,0 +1,5 @@
+# cfts library defaults unless noted; see docs/compatibility_matrix.md
+name: LatentCF
+seed: 501
+regime: R1
+params: {latent_dim: 8, ae_epochs: 100, max_iter: 100, lambda_dist: 0.1}

@@ -1,0 +1,7 @@
+architecture: gru
+hidden: 32
+layers: 1
+epochs: 8
+lr: 0.003
+batch_size: 128
+seed: 101

@@ -1,0 +1,19 @@
+# Week-8 benchmark validity (plan §Week 8, tasks 1–2): controlled metric pairs (construct validity)
+# and property pairs that must not collapse (discriminant validity). Pair constructions and pass
+# criteria are fixed in twist.evaluation.validity before running. Exact (observed-state) worlds only.
+name: validity_week8
+output_dir: artifacts/validity
+suite: artifacts/suites/twist_dev_v1
+worlds:
+- linear_dev_000
+- linear_dev_001
+- nonlinear_dev_000
+- spring_dev_000
+- regime_dev_000
+classifier: classifiers/gru_small.yaml
+n_factuals: 60
+seed: 501
+recourse:
+  steps: 200
+  t0_fracs: [0.5, 0.75, 0.9]
+n_boot: 1000
