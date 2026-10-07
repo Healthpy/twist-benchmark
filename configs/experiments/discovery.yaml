@@ -1,0 +1,174 @@
+# Causal discovery as a mechanism source (plan §Week 9 task 0; decision log Week 8 item 12).
+# One action-recourse optimizer, the masked *linear* fitter held fixed, graphs varied: the true graph
+# (R3 reference), discovered graphs (R4: Lasso VAR, PCMCI at three significance levels, VAR-LiNGAM),
+# controlled corruptions of the true graph (R4, dose-response), and the oracle mechanism (R5).
+# Worlds: the first two dev worlds of every family in the fresh-seed pilot suite (rule fixed before
+# running). Acceptance checks and hypotheses: twist.evaluation.discovery_report.
+name: discovery_week8b
+output_dir: artifacts/discovery
+suite: artifacts/suites/twist_pilot_v1
+worlds:
+- linear_dev_000
+- linear_dev_001
+- nonlinear_dev_000
+- nonlinear_dev_001
+- spring_dev_000
+- spring_dev_001
+- regime_dev_000
+- regime_dev_001
+- statespace_dev_000
+- statespace_dev_001
+classifiers:
+- classifiers/gru_small.yaml
+explainers:
+- name: EstimatedActionRecourse
+  regime: R3
+  params:
+    steps: 200
+    t0_fracs: &id001
+    - 0.5
+    - 0.75
+    - 0.9
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R3 masked-linear]
+  mechanism:
+    estimator: masked
+    fit: linear
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 lasso]
+  mechanism:
+    estimator: lasso
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 pcmci a=0.001]
+  mechanism:
+    estimator: pcmci
+    alpha: 0.001
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 pcmci a=0.01]
+  mechanism:
+    estimator: pcmci
+    alpha: 0.01
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 pcmci a=0.1]
+  mechanism:
+    estimator: pcmci
+    alpha: 0.1
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 varlingam]
+  mechanism:
+    estimator: varlingam
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 corrupted m=0.5]
+  mechanism:
+    estimator: corrupted
+    missing: 0.5
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 corrupted m=1]
+  mechanism:
+    estimator: corrupted
+    missing: 1.0
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 corrupted s=1]
+  mechanism:
+    estimator: corrupted
+    spurious: 1.0
+- name: EstimatedActionRecourse
+  regime: R4
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R4 corrupted m=0.5 s=0.5]
+  mechanism:
+    estimator: corrupted
+    missing: 0.5
+    spurious: 0.5
+- name: EstimatedActionRecourse
+  regime: R5
+  params:
+    steps: 200
+    t0_fracs: *id001
+    duration: 3
+    lambda_prox: 0.1
+    lr: 0.05
+    label: ActionRecourse[R5 oracle]
+explainer_seeds:
+- 501
+n_factuals: 60
+target: 1
+jobs: 10
+certificates: 1
+n_boot: 1000
+reference: ActionRecourse[R3 masked-linear]
+hypothesis_row: ActionRecourse[R4 pcmci a=0.01]
+budget:
+  max_queries: 200000
+  time_limit_s: 120
+  max_reference: 500
+evaluation:
+  readings:
+  - first_change_atomic
+  compute_dtw: false
+  constraints:
+  - name: amplitude_bounds
+    max_abs: 3.0

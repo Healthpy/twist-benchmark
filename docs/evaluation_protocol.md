@@ -1,4 +1,4 @@
-# TWIST evaluation protocol — v1.0 (Week 8)
+# TWIST evaluation protocol — v1.1 (Week 8; v1.1 adds causal discovery)
 
 Status: **v1.0, frozen for the full experiments (Weeks 9–12).** v0.1 (Week 1) was frozen for
 Weeks 2–7. v1.0 folds in the decisions recorded in [`decision_log.md`](decision_log.md) for Weeks 2–8:
@@ -10,6 +10,10 @@ Weeks 2–7. v1.0 folds in the decisions recorded in [`decision_log.md`](decisio
 - benchmark validity (§9).
 
 Later changes are logged with a version bump.
+
+**v1.1 (2026-10-07).** Adds causal-discovery R4 estimators: PCMCI, VAR-LiNGAM, and controlled
+graph corruption. Adds a `fit` option on masked estimators, lagged graph-recovery metrics, and the
+discovery study (§4). Nothing measured under v1.0 changes.
 
 ## 1. Purpose
 
@@ -110,12 +114,17 @@ See [`action_schema.md`](action_schema.md) for the serialized form.
 | R1 | + observational training trajectories | implemented |
 | R2 | + causal graph `G` | implemented (context only) |
 | R3 | + transition family and graph, unknown parameters | implemented: graph-masked fit (`estimator: masked`) |
-| R4 | + estimated mechanism `(Ĝ, F̂)` | implemented: Lasso VAR, neural transition, or controlled misspecification |
+| R4 | + estimated mechanism `(Ĝ, F̂)` | implemented: Lasso VAR, neural transition, discovered graph (PCMCI, VAR-LiNGAM) + masked fit, controlled graph corruption or misspecification |
 | R5 | + oracle mechanism `M*` | implemented |
 | R6 | + oracle mechanism, action model and constraints | implemented: `OracleActionRecourse` (positive control) |
 
 Regimes are enforced by `explainers.mechanism_access.regimes.build_context`: an explainer simply
 does not receive what its regime excludes.
+
+A discovered graph uses no true structure, so discovery-based mechanisms are R4. With the fitter
+held fixed (`fit: linear`), R3 (true graph) vs R4 discovery isolates the cost of not knowing the
+graph. Discovered graphs are scored against the true graph; the explainer never sees the score.
+Details: [`mechanism_access.md`](mechanism_access.md).
 
 ## 5. Factual-unit and target sampling
 

@@ -148,6 +148,29 @@ def _study(args: argparse.Namespace) -> None:
         print(f"wrote {run_study(cfg)}")
 
 
+def _discovery(args: argparse.Namespace) -> None:
+    from twist.evaluation.discovery_report import (
+        build_discovery_report,
+        load_discovery_config,
+        run_discovery,
+    )
+
+    cfg = load_discovery_config(args.config)
+    if args.jobs:
+        cfg.jobs = args.jobs
+    if args.report_only:
+        from twist.evaluation.multiworld_runner import completed_run, make_tasks
+
+        runs = [
+            d
+            for exp, _ in make_tasks(cfg)
+            if (d := completed_run(exp, same_code=False)) is not None
+        ]
+        print(f"wrote {build_discovery_report(cfg, runs)}")
+    else:
+        print(f"wrote {run_discovery(cfg)}")
+
+
 def _compat(args: argparse.Namespace) -> None:
     from twist.reporting.compatibility import compatibility_markdown
 
@@ -238,6 +261,16 @@ def main(argv: list[str] | None = None) -> None:
         "--report-only", action="store_true", help="rebuild the report from finished runs"
     )
     p.set_defaults(func=_study)
+
+    p = sub.add_parser(
+        "discovery", help="causal discovery as a mechanism source (graph vs recourse)"
+    )
+    p.add_argument("--config", default="experiments/discovery.yaml")
+    p.add_argument("--jobs", type=int, default=None)
+    p.add_argument(
+        "--report-only", action="store_true", help="rebuild the report from finished runs"
+    )
+    p.set_defaults(func=_discovery)
 
     p = sub.add_parser("compat", help="write the explainer compatibility matrix")
     p.add_argument("--output", default="docs/compatibility_matrix.md")

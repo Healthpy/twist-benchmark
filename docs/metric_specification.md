@@ -90,6 +90,16 @@ fields of `records.json`; summary keys are the fields of `summary.json`.
 | Ranking stability | Kendall τ of the method ranking by D vs τ = 1e-3 | robustness report | `metrics.sensitivity.ranking_stability` |
 | CIs | hierarchical bootstrap, worlds → units, 95% percentile | robustness report | `metrics.aggregation.hierarchical_bootstrap` |
 
+## Mechanism quality (benchmark-side, for R3/R4 mechanisms; `mechanisms.quality`)
+
+| Metric | Definition | Range / better | Key (`run_info.json` → `mechanisms.<label>`) | Tests |
+|---|---|---|---|---|
+| Graph precision / recall / F1 / SHD | summary graph (any lag), self-loops excluded | [0,1] ↑ / ≥0 ↓ | `graph_precision`, `graph_recall`, `graph_f1`, `graph_shd` | test_discovery |
+| Lagged precision / recall / F1 | over (target, source, lag) triples, cross edges, graphs padded to a common lag | [0,1] ↑ | `graph_lag_precision`, `graph_lag_recall`, `graph_lag_f1` | test_discovery |
+| Lag accuracy | among correctly recovered summary edges, the fraction with exactly the true lag set | [0,1] ↑ | `graph_lag_accuracy` | test_discovery |
+| One-step / rollout / replay error | see `mechanism_access.md` | ≥0 ↓ | `one_step_error`, `rollout_error`, `replay_error` | test_mechanisms |
+| Discovery record | method, settings, units used, runtime, instantaneous links (deleted/added counts for corruption) | — | `discovery` | test_discovery |
+
 ## Statistics and comparisons (Week 8; protocol §8)
 
 | Quantity | Definition | Population | Code |

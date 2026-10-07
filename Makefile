@@ -4,14 +4,14 @@ UV      ?= uv
 CONFIG  ?= experiments/toy.yaml
 export TWIST_NUM_THREADS ?= 1
 
-.PHONY: help install lint format typecheck test test-fast smoke toy controls sanity audit suite-dev suite-pilot pilot ladder robustness validity study study-report compat check clean-artifacts container
+.PHONY: help install lint format typecheck test test-fast smoke toy controls sanity audit suite-dev suite-pilot pilot ladder robustness validity study study-report discovery compat check clean-artifacts container
 
 help:  ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 install:  ## create .venv (Python 3.11) and install the package with dev extras
 	$(UV) venv --python 3.11 .venv
-	$(UV) pip install --python $(PY) -e ".[dev,baselines]"
+	$(UV) pip install --python $(PY) -e ".[dev,baselines,discovery]"
 
 lint:  ## ruff lint + format check
 	$(PY) -m ruff check src tests scripts
@@ -69,6 +69,9 @@ study:  ## Week-8 pilot multi-world study (50 tasks; use SLURM: see scripts/slur
 
 study-report:  ## rebuild the study report from finished runs
 	$(PY) -m twist.cli study --config experiments/study.yaml --report-only
+
+discovery:  ## causal-discovery study: discovered graphs as mechanism source (SLURM recommended)
+	$(PY) -m twist.cli discovery --config experiments/discovery.yaml
 
 compat:  ## regenerate docs/compatibility_matrix.md from explainer metadata
 	$(PY) -m twist.cli compat

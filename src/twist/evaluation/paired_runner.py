@@ -98,7 +98,7 @@ def _prepare_mechanism(
     true world on held-out units (the explainer never sees the score)."""
     import json
 
-    from twist.mechanisms.estimators import estimate_mechanism
+    from twist.mechanisms.estimators import estimate_mechanism, mechanism_label
     from twist.mechanisms.misspecification import misspecify
     from twist.mechanisms.quality import mechanism_quality
 
@@ -117,10 +117,12 @@ def _prepare_mechanism(
             mech = estimate_mechanism(
                 spec, data["x_train"], world, G, seed=derive_seed(world.seed, "mechanism", key)
             )
-            label = f"estimated:{spec.get('estimator')}"
+            label = f"estimated:{mechanism_label(spec)}"
         cache[key] = (mech, label)
         quality[label] = mechanism_quality(mech, world, data["x_test"], data["exo_test"])
         quality[label]["spec"] = spec
+        if (info := getattr(mech, "discovery_info", None)) is not None:
+            quality[label]["discovery"] = info
         log.info("mechanism %s: replay error %.4f", label, quality[label]["replay_error"])
     return cache[key]
 

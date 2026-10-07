@@ -75,6 +75,8 @@ KEEP = (
     "explainer_seed",
     "runtime_seconds",
     "d_norm",
+    "mechanism",
+    "mechanism_access_regime",
 )
 
 

@@ -1194,6 +1194,39 @@ Energy may be the fastest domain bridge because physical constraints, controllab
 
 ### Tasks
 
+#### 0. Causal discovery as a mechanism source (added 2026-10-07)
+
+*Status: implemented after Week 8 (`twist.mechanisms.discovery`, `twist discovery`); the study run is
+the first Week-9 job.* The R4 Lasso VAR already does Granger-style lagged discovery; proper
+discovery methods enter as further R4 estimators. Every discovered graph is scored against the
+world's true graph, which real-world causal recourse cannot do.
+
+1. **Discovery estimators at R4.** PCMCI (Tigramite; ParCorr, robust ParCorr or CMIknn tests) and
+   VAR-LiNGAM (in-house, to avoid a numpy/scipy downgrade) learn `Ĝ`. The mechanism is then fitted
+   restricted to `Ĝ` with the masked fitter (`fit: linear | neural`). A discovered graph uses no
+   true structure, so this is R4 information, not a rung between R2 and R3.
+2. **Isolate the cost of the graph.** R3 masked-linear (true graph) vs R4 discovery rows with the
+   same fitter. Report the paired ITT world-success difference on identical units.
+3. **Score discovery against the truth.** Report summary precision, recall, F1 and SHD, lagged F1,
+   and lag accuracy. Relate them to recourse outcomes (C, replay error) with a dose–response from
+   controlled graph corruption (deleted and spurious edges) and a PCMCI significance sweep.
+4. **Stress-test discovery where its assumptions break** (Week 10): nonlinearity, regime switching,
+   heteroscedastic or correlated noise, partial observation, missingness, and latent confounders
+   (challenge split; count spurious contemporaneous links with `contemporaneous: true`).
+5. **Graph uncertainty in `p_robust`** (Week 10): build the mechanism ensemble from bootstrap
+   discovery runs (graphs and strengths) instead of strength perturbations on the true graph.
+6. **TSCausalCF hook.** A discovery step can be TSCausalCF's mechanism source, which evaluates it
+   honestly at R4 against the R3/R5 references.
+
+Pre-declared checks for the discovery study:
+- every discovery graph is scored;
+- every R4 row has a paired comparison with the R3 reference;
+- the corruption sweep spans graph error, with F1 ≤ 0.6 at the strongest level.
+
+Hypotheses, reported with CIs:
+- H1: recourse success increases with graph F1;
+- H2: not knowing the graph costs world success (PCMCI at α = 0.01).
+
 #### 1. Define the domain state and action model
 
 For energy, use:
@@ -1255,6 +1288,7 @@ Obtain lightweight feedback from one domain expert if possible:
 
 ### Deliverables
 
+- Causal-discovery study report: graph recovery vs recourse, the cost of not knowing the graph.
 - One semi-synthetic domain world family.
 - Domain action card.
 - Domain-specific feasibility constraints.
@@ -1263,6 +1297,7 @@ Obtain lightweight feedback from one domain expert if possible:
 
 ### Acceptance criteria
 
+- The discovery study's three pre-declared checks pass, and its hypotheses are reported with CIs.
 - The bridge domain has explicit action variables, not only editable observations.
 - The action-to-state mechanism is documented and replayable.
 - At least one domain-specific constraint changes which explanations are acceptable.
@@ -1305,7 +1340,7 @@ Minimum recommended matrix:
 | Explainers | 6–8 including controls |
 | Factual units/world | 100–200 |
 | Explainer seeds | 3 where stochastic |
-| Mechanism regimes | R0, R4, R5, R6 |
+| Mechanism regimes | R0, R3, R4 (estimated and discovered graph), R5, R6 |
 | Shift types | At least 4 |
 
 If compute is constrained, reduce explainer count before reducing the number of independent worlds. Generalization across mechanisms is more central to the paper’s claims than squeezing in many similar baselines.
@@ -1318,6 +1353,10 @@ Required ablations:
 - action declaration without feasibility constraints;
 - feasibility constraints without mechanism replay;
 - exact versus estimated mechanism;
+- true versus discovered graph, with the fitter held fixed (R3 vs R4 discovery);
+- discovery under assumption-breaking worlds: nonlinear, regime, non-Gaussian/heteroscedastic noise,
+  partial observation, latent confounding (challenge split);
+- strength-only versus graph-uncertainty (bootstrap discovery) ensembles for `p_robust`;
 - different action tiers;
 - hard versus soft CF-faith;
 - tolerance range;
@@ -1414,6 +1453,10 @@ Required figures:
 
 6. **Tolerance sensitivity plot**  
    Show whether \(D\), support, and rankings remain stable.
+
+7. **Graph error versus recourse plot**  
+   Graph F1 of discovered and corrupted graphs against world success, with the R3 and R5
+   references. Shows how much discovery error recourse tolerates.
 
 #### 3. Generate paper appendices
 
@@ -1698,6 +1741,7 @@ Evaluate existing trajectory-based explainers fairly while demonstrating what ac
 | Causal-residual | TSCausalCF | Structural constraint baseline |
 | Generative/plausibility | Learned generative method | Data-manifold baseline |
 | Learned-mechanism recourse | R4 control | Estimated-world action recourse |
+| Discovery-based recourse | PCMCI / VAR-LiNGAM graph + masked fit (R4) | Recourse with no oracle structure; graph scored against the truth |
 | Oracle recourse | R5/R6 control | Positive control |
 
 ### Fairness policy
@@ -1829,8 +1873,9 @@ If implementation capacity is constrained, complete the following before adding 
 - Irregular sampling.
 - Full expert user study.
 - Multiple semi-synthetic domains.
-- Bayesian posterior over SCMs.
-- Rich causal discovery benchmark integration.
+- Bayesian posterior over SCMs (partly covered by the Week-10 bootstrap-discovery ensemble).
+- Rich causal discovery benchmark integration (PCMCI and VAR-LiNGAM integrated after Week 8;
+  DYNOTEARS, LPCMCI and tsFCI remain nice-to-have).
 - Hidden online leaderboard.
 
 ***

@@ -454,3 +454,67 @@ Decisions that deviate from, or refine, `plan.md`:
     46 s per method per 1000 draws, and the report took about 25 of the job's 49 minutes. The
     draws now sample each level of the flattened hierarchy with numpy (0.3 s per 1000 draws). The
     resampling scheme is the same, checked against the reference bootstrap in a test.
+
+## After Week 8 — 2026-10-07 (causal discovery as a mechanism source; protocol v1.1)
+
+12. **Discovery-based mechanisms are R4, not a rung between R2 and R3.** A discovered graph uses
+    no true structure. To isolate what not knowing the graph costs, the fitter is held fixed:
+    the masked estimator gets `fit: linear | neural`, and R3 masked-linear (true graph) is compared
+    with R4 PCMCI / VAR-LiNGAM / corrupted graphs fitted the same way. The family-based default of
+    `masked` is unchanged, so earlier configurations behave as before.
+13. **Methods and dependencies.**
+    - **PCMCI** comes from Tigramite (optional extra `discovery`; GPL-3.0, so it stays optional).
+    - **VAR-LiNGAM is implemented in-house:** OLS VAR, DirectLiNGAM with the pairwise
+      likelihood-ratio measure, and adaptive-Lasso BIC pruning. Installing the `lingam` package
+      would pull in pygam/semopy and downgrade numpy 2.4.6 → 2.2.6 and scipy 1.17.1 → 1.13.1,
+      changing the stack behind all Weeks 1–8 results.
+    - **Instantaneous links** are counted but never enter the fitted mechanism, since TWIST worlds
+      are strictly lagged. PCMCI tests lags 1…L by default; `contemporaneous: true` is for the
+      challenge worlds.
+    - **Unit subsampling:** PCMCI runtime grows with the number of pooled units (11 s for 100,
+      125 s for 1200 on a linear world, with identical graphs), so it uses a seeded subsample of
+      200 training units by default. VAR-LiNGAM uses 400.
+14. **Controlled graph corruption** (`estimator: corrupted`) deletes or adds cross edges of the true
+    graph. It gives a dose–response from graph error to recourse, like the misspecification sweep.
+    Additions are capped by the number of absent edges: regime_dev_002 has 25 of 30 possible cross
+    edges, so "spurious 0.5" could add only 5. The achieved counts are recorded per mechanism.
+15. **First functional check** (training split, scored against the truth):
+    - **linear_dev_000:** Lasso, PCMCI(α = 0.01) and VAR-LiNGAM all reach summary F1 0.96 with
+      precision 1.0. PCMCI(α = 0.2) drops to F1 0.67 (precision 0.52).
+    - **nonlinear_dev_000:** all linear methods reach about F1 0.6 with precision about 0.4,
+      i.e. spurious edges from nonlinearity.
+    - **regime_dev_002:** VAR-LiNGAM recall is 0.08; PCMCI ranges from F1 0.48 (α = 0.01) to
+      0.82 (α = 0.2).
+
+    Discovery quality depends on world family as expected, which is what the study measures.
+16. **Study design** (`experiments/discovery.yaml`):
+    - the first two dev worlds of each family in `twist_pilot_v1` (rule fixed before running);
+    - GRU, 60 units;
+    - 11 recourse rows: R3 masked-linear, R4 Lasso, PCMCI at α ∈ {0.001, 0.01, 0.1}, VAR-LiNGAM,
+      four corruptions, and R5 oracle.
+
+    Checks and hypotheses are pre-declared in `twist.evaluation.discovery_report`.
+17. **Discovery study results** (SLURM job 27726130, 11 min on 10 tasks;
+    `artifacts/discovery/discovery_week8b/report/`). Design: 10 worlds × GRU × 60 units. All three
+    pre-declared checks pass.
+    - **H2 is supported.** Not knowing the graph costs world success: R3 masked-linear 0.88
+      [0.79, 0.96] vs R4 PCMCI(α = 0.01) 0.64 [0.42, 0.84]; paired cost +0.235 [+0.057, +0.418],
+      d_z 0.54.
+    - **H1 is not supported.** Spearman ρ(graph F1, world success) = +0.21 [−0.09, +0.47] over
+      (world, R4 row) points.
+    - **Discovery quality:** Lasso, PCMCI and VAR-LiNGAM reach mean summary F1 0.64–0.72, with
+      precision 0.63–0.87 and recall 0.64–0.76. Mechanism replay errors are 0.02–0.05.
+    - **Paired cost of each R4 row vs R3:**
+      - Lasso +0.06 [−0.07, +0.24] and PCMCI(α = 0.1) +0.12 [−0.00, +0.30]: CIs include 0;
+      - VAR-LiNGAM +0.16 [+0.01, +0.32];
+      - PCMCI(α = 0.001 / 0.01) +0.24.
+    - **Exploratory (not pre-declared): missing edges cost, spurious edges barely do.**
+      - Deleting half the true edges costs +0.24 [+0.07, +0.42].
+      - Deleting all cross edges costs +0.20; actions can still act through self-dependence and
+        the label channel.
+      - Doubling the edges with spurious ones costs only +0.04 [−0.01, +0.12].
+      - Among the discovery methods, cost falls as recall rises (strict PCMCI 0.64 recall →
+        +0.24; Lasso 0.76 → +0.06).
+
+      Summary F1 mixes precision and recall, which may be why H1 is weak. A recall-based
+      dose–response should be pre-declared before it is claimed (Week 10 ablation).

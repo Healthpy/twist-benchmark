@@ -1,6 +1,8 @@
 """How good is a mechanism the explainer uses? Computed by the benchmark against the true world.
 
-* graph recovery — precision / recall / F1 / SHD of the summary graph (any lag; self-loops excluded);
+* graph recovery — precision / recall / F1 / SHD of the summary graph (any lag; self-loops excluded),
+  lagged precision / recall / F1 over (target, source, lag) triples, and lag accuracy: among the
+  correctly recovered summary edges, the fraction whose set of lags is exactly right;
 * one-step error — mean |x_t − F̂(x_{t−L:t})| on held-out trajectories (the oracle's equals the
   innovation scale, the irreducible floor);
 * rollout error — noiseless rollouts from a factual prefix under F̂ vs F* (deterministic skeleton);
@@ -30,13 +32,46 @@ def _summary(G: np.ndarray) -> np.ndarray:
     return s
 
 
+def _pad(G: np.ndarray, L: int) -> np.ndarray:
+    G = np.asarray(G, bool)
+    if G.shape[2] < L:
+        G = np.concatenate([G, np.zeros((*G.shape[:2], L - G.shape[2]), bool)], axis=2)
+    return G
+
+
+def _prf(tp: int, fp: int, fn: int) -> tuple[float, float, float]:
+    prec = tp / (tp + fp) if tp + fp else float("nan")
+    rec = tp / (tp + fn) if tp + fn else float("nan")
+    return prec, rec, (2 * prec * rec / (prec + rec) if tp else 0.0)
+
+
 def graph_recovery(est: np.ndarray, true: np.ndarray) -> dict[str, float]:
     e, t = _summary(est), _summary(true)
     tp, fp, fn = int((e & t).sum()), int((e & ~t).sum()), int((~e & t).sum())
-    prec = tp / (tp + fp) if tp + fp else float("nan")
-    rec = tp / (tp + fn) if tp + fn else float("nan")
-    f1 = 2 * prec * rec / (prec + rec) if tp else 0.0
-    return {"precision": prec, "recall": rec, "f1": f1, "shd": fp + fn}
+    prec, rec, f1 = _prf(tp, fp, fn)
+    # lagged level (cross edges only, graphs padded to a common maximal lag)
+    L = max(np.shape(est)[2], np.shape(true)[2])
+    el, tl = _pad(est, L), _pad(true, L)
+    cross = ~np.eye(el.shape[0], dtype=bool)[:, :, None]
+    el, tl = el & cross, tl & cross
+    ltp, lfp, lfn = int((el & tl).sum()), int((el & ~tl).sum()), int((~el & tl).sum())
+    lprec, lrec, lf1 = _prf(ltp, lfp, lfn)
+    both = np.argwhere(e & t)
+    lag_acc = (
+        float(np.mean([np.array_equal(el[i, j], tl[i, j]) for i, j in both]))
+        if len(both)
+        else float("nan")
+    )
+    return {
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
+        "shd": fp + fn,
+        "lag_precision": lprec,
+        "lag_recall": lrec,
+        "lag_f1": lf1,
+        "lag_accuracy": lag_acc,
+    }
 
 
 def one_step_error(mech: Any, x: np.ndarray) -> float:

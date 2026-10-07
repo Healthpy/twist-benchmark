@@ -16,9 +16,10 @@ replayed instead. The gap between "the model agrees" and "the world agrees" is t
 directly and decomposed.
 
 > **Status.** Weeks 1–8 of the 12-week plan are implemented: the benchmark core, baselines,
-> mechanism access, robustness, statistics and validity. The evaluation protocol is frozen at
-> **v1.0** ([`docs/evaluation_protocol.md`](docs/evaluation_protocol.md)). Weeks 9–12 (realism
-> bridge, full campaign, release) are next.
+> mechanism access, robustness, statistics and validity. Causal discovery (PCMCI, VAR-LiNGAM) has
+> since been added as an R4 mechanism source. The evaluation protocol is at **v1.1**
+> ([`docs/evaluation_protocol.md`](docs/evaluation_protocol.md)). Weeks 9–12 (discovery study,
+> realism bridge, full campaign, release) are next.
 
 ## Contents
 
@@ -58,14 +59,16 @@ denominators. There is no scalar leaderboard.
 Requires Python 3.11 and [`uv`](https://github.com/astral-sh/uv).
 
 ```bash
-make install    # .venv with Python 3.11; editable install with the dev and baselines extras
+make install    # .venv with Python 3.11; editable install with the dev, baselines and discovery extras
 make check      # ruff + mypy + pytest
 ```
 
 The `baselines` extra installs the third-party counterfactual library
 [`counterfactual-explanations-for-time-series`](https://github.com/visual-xai-for-time-series/counterfactual-explanations-for-time-series)
 at a pinned commit. It provides Wachter, COMTE, M-CELS, CONFETTI, Native-Guide and Latent-CF.
-Containers: `docker build -t twist .` or `make container` (Apptainer, for HPC).
+The `discovery` extra installs [Tigramite](https://github.com/jakobrunge/tigramite) (PCMCI, GPL-3.0).
+VAR-LiNGAM is implemented in-house. Containers: `docker build -t twist .` or `make container`
+(Apptainer, for HPC).
 
 ## Quickstart
 
@@ -145,13 +148,14 @@ twist robustness --config experiments/robustness.yaml # Week 7: shifts, stabilit
 twist validity --config experiments/validity.yaml     # Week 8: construct/discriminant validity
 twist study --config experiments/study.yaml           # Week 8: pilot multi-world study (paired statistics)
 twist study --config experiments/study.yaml --report-only   # rebuild the study report from finished runs
+twist discovery --config experiments/discovery.yaml   # causal discovery as a mechanism source (graph vs recourse)
 twist compat                                          # regenerate the explainer compatibility matrix
 ```
 
 Config paths resolve relative to `configs/`. Multi-world commands are resumable: a task is reused
 only when both its config hash and the code fingerprint match. `make help` lists all targets:
 `install, lint, format, typecheck, test, test-fast, smoke, toy, controls, sanity, audit, suite-dev,
-suite-pilot, pilot, ladder, robustness, validity, study, study-report, compat, check,
+suite-pilot, pilot, ladder, robustness, validity, study, study-report, discovery, compat, check,
 clean-artifacts, container`.
 
 ## What the benchmark contains
@@ -164,7 +168,7 @@ clean-artifacts, container`.
 | **Readings** | `native` (declared action), or five diagnostic readings of trajectory-only proposals: first slice, first segment, sparse segmentation, pulse fit, full schedule. | [`native_vs_reconstructed_actions.md`](docs/technical_notes/native_vs_reconstructed_actions.md) |
 | **Classifiers** | GRU, LSTM, TCN, Transformer, and a logistic model on features. Training is deterministic on CPU. | `configs/classifiers/` |
 | **Explainers** | Third-party baselines (cfts library: Wachter, COMTE, M-CELS, CONFETTI, Native-Guide, Latent-CF); in-house NUN and Wachter reference; action-native recourse at graph / estimated / oracle access. Structural controls: Pearl/noiseless SCM recourse, full-schedule oracle, R6 oracle recourse, adversarial edit, mechanism-wrong edit, abstain. Budgets are shared and failures are recorded with a status. | [`compatibility_matrix.md`](docs/compatibility_matrix.md) |
-| **Mechanism access** | Regimes R0–R6, enforced by construction. Estimators: masked linear (R3), Lasso VAR and neural transition (R4). Controlled misspecification is available. | [`mechanism_access.md`](docs/mechanism_access.md) |
+| **Mechanism access** | Regimes R0–R6, enforced by construction. Estimators: masked linear or neural on the true graph (R3); Lasso VAR, neural transition, and causal discovery (PCMCI, VAR-LiNGAM) followed by a masked fit (R4). Discovered graphs are scored against the true graph. Controlled misspecification and graph corruption are available. | [`mechanism_access.md`](docs/mechanism_access.md) |
 | **Metrics** | Model-relative (validity, proximity, DTW, sparsity, OOD); mechanism-relative (CF-faith, D, E_replay, graded faith, causal-path consistency, retroactivity); world-relative (A/B/C, safe-world and action-grounded success); actionability; traceability. | [`metric_specification.md`](docs/metric_specification.md) |
 | **Robustness** | A shift library at the innovation, mechanism, observation and decision levels. Also: innovation-perturbation stability, tolerance profiles, `p_robust` over plausible mechanisms, calibration of reported probabilities, and a CI-aware brittleness verdict. | [`robustness.md`](docs/robustness.md) |
 | **Traceability** | Per-run manifests, config/dataset/mechanism hashes, code fingerprints, action certificates, and the `twist audit` re-replay. | [`reproducibility.md`](docs/reproducibility.md) |
@@ -196,6 +200,7 @@ under `artifacts/`.
 | 6 | **Mechanism-access ladder:** world success rises from 0.13–0.21 (R0/R1 baselines) to 0.65 (R2 graph), 0.92–0.96 (R3/R4 estimated mechanisms) and 0.97–0.98 (R5/R6 oracle). Baselines fail mostly by replay mismatch, and misspecification degrades C. |
 | 7 | **Robustness:** mechanism shifts hurt precise action-native plans most; the oracle drops from 0.97 to 0.42–0.64. The CI-aware brittleness verdict flags R4-Lasso, R6-oracle and Pearl recourse, and clears the other six methods. Innovation, observation and decision shifts move C by ≤ 0.1. |
 | 8 | **Validity:** all five construct-validity pairs and all four discriminant tests pass (`artifacts/validity/`). **Pilot study** (25 worlds): the model–world gap replicates in 25/25 worlds; 2/4 pre-declared checks pass (details below). |
+| 8b | **Causal discovery** (10 worlds; `artifacts/discovery/`): PCMCI, VAR-LiNGAM and Lasso recover the graph with F1 0.64–0.72. Planning on a PCMCI graph instead of the true one costs +0.24 [+0.06, +0.42] world success (paired; H2 supported). Graph F1 alone does not predict success (H1 not supported). In exploratory analysis, missing edges hurt and spurious ones barely do. |
 
 ### Week-8 pilot multi-world study
 
@@ -296,6 +301,7 @@ paper/                figures, tables, appendix, results manifest
 | 6 | Mechanism-access ladder, estimators, action-native recourse, misspecification | **done**: 3/3 checks |
 | 7 | Shifts, stability, tolerance sensitivity, uncertainty, robustness | **done**: 3/3 checks |
 | 8 | Statistical protocol, benchmark validity, pilot multi-world study, protocol v1.0 | **done**: validity 9/9; study checks 2/4 (two controls fail on the CI rule; see results) |
-| 9–12 | Realism bridge, full experiments, publication package | not started |
+| 9 | Causal discovery as a mechanism source; semi-synthetic realism bridge | discovery done: 3/3 checks; not knowing the graph costs +0.24 world success (PCMCI, paired CI > 0). Bridge pending |
+| 10–12 | Full experiments, analysis, publication package | not started |
 
 The TSCausalCF method is being developed separately and will plug in through the explainer API.

@@ -75,6 +75,13 @@ class EstimatedActionRecourse(_SCMRecourse):
     def _resolve_mechanism(self, ctx: ExplainerContext) -> tuple[Any, str]:
         if ctx.mechanism is None:
             raise PermissionError(f"{self.name} needs an estimated mechanism (R3/R4)")
+        if not ctx.mechanism.assumptions.get("exact_abduction", True):
+            # at R5 the mechanism is the oracle world itself; on partially observed worlds it
+            # cannot abduct from observations (estimates are fit in observation space and can)
+            raise NotImplementedError(
+                f"{self.name} abducts from observations with the oracle mechanism; partially "
+                "observed worlds need posterior abduction (estimated-mechanism recourse runs there)"
+            )
         return ctx.mechanism, ctx.mechanism_label or "estimated"
 
     def _action_space(self, ctx: ExplainerContext, T: int, k: int) -> ActionSpace:

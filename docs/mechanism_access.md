@@ -13,7 +13,7 @@ each regime may see, so information limits hold by construction, not by conventi
 | R1 | + training trajectories and labels | none (retrieval / generative methods) |
 | R2 | + dependency graph `G` on observed channels, outcome channels | none — actions are *imposed* |
 | R3 | + `G` and a graph-masked fit `F̂` (family known, parameters unknown) | `estimator: masked` |
-| R4 | an estimate `(Ĝ, F̂)` only | `estimator: lasso` / `neural`, or `misspecify: {kind, level}` |
+| R4 | an estimate `(Ĝ, F̂)` only | `estimator: lasso` / `neural` / `pcmci` / `varlingam`, `estimator: corrupted` (controlled graph error), or `misspecify: {kind, level}` |
 | R5 | oracle world `F*` | oracle |
 | R6 | oracle + action model (actionable set, bounds, controls) + feasibility constraints | oracle |
 
@@ -25,9 +25,12 @@ explainer never sees these scores.
 
 | Estimator | Regime | Model | Graph estimate |
 |---|---|---|---|
-| `masked` | R3 | least squares on the known parents (linear families); graph-masked neural transition otherwise | the given `G` |
+| `masked` | R3 | least squares on the known parents (linear families); graph-masked neural transition otherwise. `fit: linear` / `neural` fixes the fitter regardless of family | the given `G` |
 | `lasso` | R4 | per-target BIC-selected Lasso on lagged values; coefficients below 0.01 are zeroed | support of the coefficients |
 | `neural` | R4 | linear skip + one-hidden-layer tanh MLP on the lag window, trained by MSE | dense (no structure) |
+| `pcmci` | R4 | PCMCI (Tigramite, extra `discovery`), lags 1…L, test `parcorr` / `robust_parcorr` / `cmiknn`, significance `alpha`, `max_units` (default 200) seeded subsample; then a masked fit on `Ĝ` (`fit: linear` default, or `neural`) | links significant at `alpha` |
+| `varlingam` | R4 | VAR-LiNGAM, implemented in-house: OLS VAR, DirectLiNGAM on residuals (instantaneous order), adaptive-Lasso (BIC) pruning; then a masked fit on `Ĝ` | lagged support after pruning; instantaneous links are counted but not used |
+| `corrupted` | R4 (benchmark-controlled) | the true graph with `missing` × (true cross edges) deleted and `spurious` × (true cross edges) added at random lags, then a masked fit | the corrupted graph; additions capped by the absent edges |
 
 Estimates expose the ordinary world interface. Abduction, Pearl replay and the differentiable
 recourse optimizer run on them unchanged. On partially observed worlds they are fit on the
@@ -38,6 +41,8 @@ observations, which is all a real analyst has.
 | Metric | Definition |
 |---|---|
 | graph precision / recall / F1 / SHD | summary graph (any lag), self-loops excluded, on observed channels |
+| lagged precision / recall / F1 | over (target, source, lag) triples, cross edges only |
+| lag accuracy | among correctly recovered summary edges, the fraction whose lag set is exactly right |
 | one-step error | mean \|x_t − F̂(lags)\| on held-out units (the oracle's value is the noise floor) |
 | rollout error | noiseless rollouts from a mid-horizon prefix under F̂ vs F*, per channel std |
 | **replay error** | Pearl replay of random point interventions under F̂ (abducted with F̂) vs the oracle replay of the same action, per channel std — the counterfactual accuracy that matters for explanations |
@@ -96,3 +101,27 @@ two figures, and three pre-declared acceptance checks:
 - the oracle action control reaches C ≥ 0.8 with feasible rate ≥ 0.95;
 - every misspecification kind raises the median replay error by ≥ 1e-3 at its largest level;
 - every unit is attributed.
+
+## Causal discovery as a mechanism source (`twist discovery`)
+
+The study (`experiments/discovery.yaml`, `twist.evaluation.discovery_report`) holds one recourse
+optimizer and the masked linear fitter fixed, and varies only the graph:
+- R3 masked-linear on the true graph;
+- R4 Lasso, PCMCI at α ∈ {0.001, 0.01, 0.1}, and VAR-LiNGAM;
+- R4 controlled corruptions;
+- R5 oracle.
+
+It reports discovery quality against the truth, and the paired cost of not knowing the graph
+(R3 − R4, ITT world success, identical units). A scatter plot shows graph F1 against world success.
+
+Pre-declared checks:
+- every discovery graph is scored;
+- every R4 row is paired with the reference;
+- the corruption sweep reaches F1 ≤ 0.6.
+
+Hypotheses, reported with CIs:
+- H1: ρ(F1, success) > 0;
+- H2: R3 − PCMCI(α = 0.01) > 0.
+
+Discovery is run on the training split only, and its runtime and instantaneous-link counts are kept
+in `run_info.json` under each mechanism's `discovery` record.

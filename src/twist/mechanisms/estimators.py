@@ -63,7 +63,12 @@ def _coef_from_flat(W: np.ndarray, L: int, k: int) -> np.ndarray:
 
 
 def fit_masked_linear(
-    x: np.ndarray, L: int, graph: np.ndarray, template: TemporalSCM, ridge: float = 1e-6
+    x: np.ndarray,
+    L: int,
+    graph: np.ndarray,
+    template: TemporalSCM,
+    ridge: float = 1e-6,
+    name: str = "masked-ols",
 ) -> LinearVAR:
     """OLS of each channel on its known parents only (``graph[i, j, l]``)."""
     k = x.shape[-1]
@@ -78,7 +83,7 @@ def fit_masked_linear(
     coef = _coef_from_flat(W, L, k)
     resid = Y - X @ W.T
     est = LinearVAR(
-        coef=coef, **_estimate_common(template, "masked-ols", resid, L, k, np.asarray(graph, bool))
+        coef=coef, **_estimate_common(template, name, resid, L, k, np.asarray(graph, bool))
     )
     return est
 
@@ -167,6 +172,7 @@ def fit_neural(
     batch_size: int = 512,
     mask_graph: np.ndarray | None = None,
     seed: int = 0,
+    name: str | None = None,
 ) -> NeuralTransitionSCM:
     """Train ``F̂`` by MSE on one-step targets. ``mask_graph`` (k, k, L) restricts inputs (R3)."""
     torch.manual_seed(seed)
@@ -191,11 +197,32 @@ def fit_neural(
     with torch.no_grad():
         resid = (net(Xt) - Yt).numpy()
     graph = np.ones((k, k, L), bool) if mask_graph is None else np.asarray(mask_graph, bool)
-    name = "neural-masked" if mask_graph is not None else "neural"
+    name = name or ("neural-masked" if mask_graph is not None else "neural")
     return NeuralTransitionSCM(net=net, **_estimate_common(template, name, resid, L, k, graph))
 
 
-ESTIMATORS = ("masked", "lasso", "neural")
+ESTIMATORS = ("masked", "lasso", "neural", "pcmci", "varlingam", "corrupted")
+DISCOVERY_ESTIMATORS = ("pcmci", "varlingam", "corrupted")
+
+
+def mechanism_label(spec: dict[str, Any]) -> str:
+    """Report label of an estimator spec; discovery settings are part of it, so that a sweep over
+    e.g. PCMCI significance levels yields one row per level (no ``:`` — labels are split on it)."""
+    kind = spec.get("estimator", "lasso")
+    if kind == "pcmci":
+        test = spec.get("test", "parcorr")
+        lab = f"pcmci-a{float(spec.get('alpha', 0.01)):g}" + (
+            "" if test == "parcorr" else f"-{test}"
+        )
+    elif kind == "varlingam":
+        lab = "varlingam"
+    elif kind == "corrupted":
+        lab = f"corrupted-m{float(spec.get('missing', 0)):g}-s{float(spec.get('spurious', 0)):g}"
+    elif kind == "masked" and spec.get("fit"):
+        return f"masked-{spec['fit']}"
+    else:
+        return kind
+    return lab + ("-neural" if spec.get("fit", "linear") == "neural" else "")
 
 
 def estimate_mechanism(
@@ -209,6 +236,10 @@ def estimate_mechanism(
 
     ``masked`` needs ``known_graph`` (R3): linear least squares for linear-family templates, a
     graph-masked neural transition otherwise. ``lasso`` and ``neural`` use no structure (R4).
+    Discovery estimators (``pcmci``, ``varlingam``; ``corrupted`` = controlled error on the true
+    graph) learn ``Ĝ`` and fit restricted to it with ``fit: linear`` (masked least squares, the
+    default) or ``fit: neural`` (masked neural transition); the family is not used (R4). The
+    discovery record is attached as ``discovery_info``.
     """
     kind = spec.get("estimator", "lasso")
     L = int(spec.get("L", getattr(template, "L", 1)))
@@ -216,7 +247,9 @@ def estimate_mechanism(
         if known_graph is None:
             raise ValueError("the masked estimator needs the known graph (R3)")
         state = getattr(template, "state", template)
-        if isinstance(state, LinearVAR) and type(state).family in ("linear", "spring"):
+        fit = spec.get("fit")  # None: by family (R3 knows the transition family)
+        linear = isinstance(state, LinearVAR) and type(state).family in ("linear", "spring")
+        if fit == "linear" or (fit is None and linear):
             return fit_masked_linear(x, L, known_graph, template)
         return fit_neural(
             x,
@@ -227,6 +260,27 @@ def estimate_mechanism(
             hidden=int(spec.get("hidden", 64)),
             epochs=int(spec.get("epochs", 40)),
         )
+    if kind in DISCOVERY_ESTIMATORS:
+        from twist.mechanisms.discovery import discover
+
+        graph, info = discover(spec, x, L, known_graph, seed=seed)
+        name = mechanism_label(spec)
+        mech: Any
+        if spec.get("fit", "linear") == "neural":
+            mech = fit_neural(
+                x,
+                L,
+                template,
+                hidden=int(spec.get("hidden", 64)),
+                epochs=int(spec.get("epochs", 40)),
+                mask_graph=graph,
+                seed=seed,
+                name=name,
+            )
+        else:
+            mech = fit_masked_linear(x, L, graph, template, name=name)
+        mech.discovery_info = info
+        return mech
     if kind == "lasso":
         return fit_lasso_var(x, L, template, alpha=spec.get("alpha"), seed=seed)
     if kind == "neural":
