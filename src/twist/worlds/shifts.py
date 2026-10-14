@@ -8,11 +8,12 @@ decision (label threshold/site, classifier retraining).
 from __future__ import annotations
 
 import copy
+import dataclasses
 from typing import Any
 
 import numpy as np
 
-from twist.worlds.base_scm import InnovationProcess, TemporalSCM
+from twist.worlds.base_scm import TemporalSCM
 
 
 def innovation_shift(world: Any, kind: str, scale: float | None = None) -> Any:
@@ -30,7 +31,7 @@ def innovation_shift(world: Any, kind: str, scale: float | None = None) -> Any:
             old.kind
         ] * old.scale
         scale = std * {"laplace": 1 / np.sqrt(2.0), "gaussian": 1.0, "uniform": np.sqrt(3.0)}[kind]
-    target.noise = InnovationProcess(kind, float(scale), old.correlation, old.heteroscedastic)
+    target.noise = dataclasses.replace(old, kind=kind, scale=float(scale))
     shifted.world_id = f"{world.world_id}__innov-{kind}"
     return shifted
 
@@ -120,11 +121,12 @@ def apply_shift(world: Any, spec: dict[str, Any], reference_state: np.ndarray) -
             shifted = copy.deepcopy(world)
             target = getattr(shifted, "state", shifted)
             n = target.noise
-            target.noise = InnovationProcess(
-                n.kind,
-                n.scale,
-                amount if kind == "correlated" else n.correlation,
-                n.heteroscedastic + amount if kind == "heteroscedastic" else n.heteroscedastic,
+            target.noise = dataclasses.replace(
+                n,
+                correlation=amount if kind == "correlated" else n.correlation,
+                heteroscedastic=n.heteroscedastic + amount
+                if kind == "heteroscedastic"
+                else n.heteroscedastic,
             )
     elif level == "mechanism":
         state = getattr(world, "state", world)

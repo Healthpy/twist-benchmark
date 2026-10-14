@@ -1,0 +1,67 @@
+# Week-9 energy domain bridge (plan §Week 9, tasks 1–4; decision log Week 9). Explicit action
+# variables (battery redispatch, demand response) next to an abstract loading set-point and
+# trajectory baselines read as actions. Every row is evaluated under the generic constraint
+# (amplitude) and under generic + domain constraints (battery capacity, battery C-rate, DR energy
+# cap); R5 rows plan without constraint knowledge, R6 rows with it. Checks and hypotheses are fixed
+# in twist.evaluation.bridge_report before running. Channels: 3 grid, 4 soc, 5 backlog. Start times
+# t = 25, 35, 38, 40: day 2 (00:00 UTC + 24 h) with the evening peak at t ≈ 40–43.
+name: bridge_week9
+output_dir: artifacts/bridge
+suite: artifacts/suites/twist_energy_v1
+worlds: [energy_dev_000, energy_dev_001, energy_dev_002, energy_dev_003, energy_dev_004]
+classifiers: [classifiers/gru_small.yaml]
+explainers:
+  # trajectory baselines (read as actions by the first-slice adapter)
+  - explainers/wachter_cfts.yaml
+  - explainers/native_guide.yaml
+  - explainers/nun.yaml
+  # abstract observed-variable action: do(grid) set-point
+  - name: PearlSCMRecourse
+    regime: R5
+    params: {action_form: interval, duration: 4, steps: 200, t0_fracs: [0.5, 0.7, 0.76, 0.8],
+             lambda_prox: 0.1, lr: 0.05, label: "SetPoint[R5 grid]"}
+  # explicit action variables: battery redispatch and demand response
+  - name: PearlSCMRecourse
+    regime: R5
+    params: {action_form: control, control: u_dispatch, duration: 4, steps: 200,
+             t0_fracs: [0.5, 0.7, 0.76, 0.8], lambda_prox: 0.1, lr: 0.05,
+             label: "Dispatch[R5 constraint-blind]"}
+  - name: OracleActionRecourse
+    regime: R6
+    params: {action_form: control, control: u_dispatch, duration: 4, steps: 200,
+             t0_fracs: [0.5, 0.7, 0.76, 0.8], lambda_prox: 0.1, lr: 0.05, lambda_feas: 100.0,
+             label: "Dispatch[R6 constraint-aware]"}
+  - name: PearlSCMRecourse
+    regime: R5
+    params: {action_form: control, control: u_dr, duration: 4, steps: 200,
+             t0_fracs: [0.5, 0.7, 0.76, 0.8], lambda_prox: 0.1, lr: 0.05,
+             label: "DR[R5 constraint-blind]"}
+  - name: OracleActionRecourse
+    regime: R6
+    params: {action_form: control, control: u_dr, duration: 4, steps: 200,
+             t0_fracs: [0.5, 0.7, 0.76, 0.8], lambda_prox: 0.1, lr: 0.05, lambda_feas: 100.0,
+             label: "DR[R6 constraint-aware]"}
+  - explainers/abstain_control.yaml
+explainer_seeds: [501]
+n_factuals: 60
+target: 0   # recourse avoids the overload: units predicted to overload, target 'no overload'
+jobs: 5
+certificates: 1
+n_boot: 1000
+domain_constraints: [soc_capacity, battery_c_rate, dr_energy_cap]
+constraint_blind: "Dispatch[R5 constraint-blind]"
+constraint_aware: "Dispatch[R6 constraint-aware]"
+abstract_setpoint: "SetPoint[R5 grid]"
+demo_worlds: 2
+budget: {max_queries: 200000, time_limit_s: 120, max_reference: 500}
+evaluation:
+  readings: [first_change_atomic]
+  compute_dtw: false
+  constraints:
+  # generic
+  - {name: amplitude_bounds, max_abs: 3.0}
+  # domain (energy): battery energy capacity, battery C-rate 0.5 (1/(2 h · 0.95) ≈ 0.53/h + noise
+  # tolerance), demand-response energy cap per event (0.8 p.u.·h = 8 MWh of curtailment)
+  - {name: state_bounds, id: soc_capacity, channels: [4], lower: 0.0, upper: 1.0}
+  - {name: max_rate_of_change, id: battery_c_rate, channels: [4], max_rate: 0.55}
+  - {name: intervention_budget, id: dr_energy_cap, budget: 0.8, unit_costs: [0, 0, 0, 0, 0, 1, 0, 0]}

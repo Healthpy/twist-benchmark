@@ -196,6 +196,11 @@ class _SCMRecourse(Explainer):
         """Constraint knowledge the explainer may use when planning (R6 only)."""
         return {}
 
+    def _penalty(self, ctx: ExplainerContext) -> Any:
+        """Differentiable violation penalty ``(x, x̂, mask, value, shift) → scalar`` for constraints
+        that cannot be projected onto (R6 only); ``None`` leaves the objective unchanged."""
+        return None
+
     def _feasible(
         self, ctx: ExplainerContext, x: np.ndarray, action: Any, x_hat: np.ndarray
     ) -> bool:
@@ -234,6 +239,7 @@ class _SCMRecourse(Explainer):
         mech, mech_label = self._resolve_mechanism(ctx)
         space = self._action_space(ctx, *factuals.shape[1:])
         limits = self._limits(ctx)
+        penalty = self._penalty(ctx)
         p = self.params
         fracs = p.get("t0_fracs", [0.25, 0.5])
         steps = int(p.get("steps", self.default_steps))
@@ -271,6 +277,7 @@ class _SCMRecourse(Explainer):
                     lam_pred,
                     prox,
                     lr,
+                    penalty,
                 )
                 for j, n in enumerate(todo):
                     norm = float(np.linalg.norm(thetas[j])) if flipped[j] else np.inf
@@ -346,7 +353,7 @@ class _SCMRecourse(Explainer):
         return (pred == np.asarray(targets)[None]).mean(axis=0)
 
     @staticmethod
-    def _optimise(world, clf, form: ActionForm, x, e, y, steps, lam_pred, lam_prox, lr):
+    def _optimise(world, clf, form: ActionForm, x, e, y, steps, lam_pred, lam_prox, lr, pen=None):
         dtype = clf.dtype
         x_t = torch.as_tensor(x, dtype=dtype)
         e_t = torch.as_tensor(e, dtype=dtype)
@@ -354,18 +361,22 @@ class _SCMRecourse(Explainer):
         theta = torch.zeros(form.theta_shape(len(x)), dtype=dtype, requires_grad=True)
         opt = torch.optim.Adam([theta], lr=lr)
 
-        def rollout(th):
+        def rollout(th, parts=False):
             mask, value, shift = form.build(th, x_t)
             if world is None:  # no mechanism: the action is imposed, nothing propagates
-                return torch.where(torch.as_tensor(mask), value, x_t + shift)
-            return replay(world, e_t, mask, value, shift)
+                out = torch.where(torch.as_tensor(mask), value, x_t + shift)
+            else:
+                out = replay(world, e_t, mask, value, shift)
+            return (out, mask, value, shift) if parts else out
 
         def penalty(th):
             return (th**2).reshape(len(th), -1).sum(1).mean()
 
         for _ in range(steps):
-            x_hat = rollout(theta)
+            x_hat, mask, value, shift = rollout(theta, parts=True)
             loss = lam_pred * F.cross_entropy(clf.forward(x_hat), y_t) + lam_prox * penalty(theta)
+            if pen is not None:  # R6: violations of constraints it cannot project onto
+                loss = loss + pen(x_t, x_hat, mask, value, shift)
             opt.zero_grad()
             loss.backward()
             opt.step()

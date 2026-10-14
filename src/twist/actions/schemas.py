@@ -23,7 +23,8 @@ class ControlChannel:
 
     The control enters additively through the structural equations with a fixed input map:
     ``x_{t+delay} = F(Pa) + ε + loadings · u_t`` — i.e. ``F(x_t, u_t, ε_t)`` with a linear input
-    channel. ``lower``/``upper`` bound ``u_t``; ``unit`` and ``description`` feed action cards.
+    channel. ``lower``/``upper`` bound ``u_t``; ``unit``, ``description``, ``cost`` (per unit of
+    ``|u|`` per step, in ``cost_unit``) and ``side_effects`` feed domain action cards.
     """
 
     name: str
@@ -33,6 +34,9 @@ class ControlChannel:
     upper: float = np.inf
     unit: str = ""
     description: str = ""
+    cost: float = 0.0
+    cost_unit: str = ""
+    side_effects: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,6 +47,9 @@ class ControlChannel:
             "upper": float(self.upper),
             "unit": self.unit,
             "description": self.description,
+            "cost": float(self.cost),
+            "cost_unit": self.cost_unit,
+            "side_effects": self.side_effects,
         }
 
     @classmethod

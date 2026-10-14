@@ -1,0 +1,24 @@
+# Week-9 semi-synthetic energy suite (plan §Week 9, domain bridge). Distribution transformer + PV +
+# battery + demand response on real NL weather/demand covariates (OPSD 2016–2019, CC-BY 4.0); see
+# twist.worlds.semi_synthetic and docs/energy_domain.md. Dev worlds for the bridge study; hidden
+# test worlds are reserved for the Week-10 campaign.
+name: twist_energy_v1
+seed: 2109
+output_dir: artifacts/suites
+families: [energy]
+worlds_per_split: {dev: 5, test: 5}
+k: 8
+T: 50
+n_samples: 1500
+train_frac: 0.8
+max_attempts: 6
+hidden: [test, challenge]
+pools:
+  standard:
+    pv_penetration: [low, high]
+    battery: [small, large]
+    season: [winter, all]   # summer windows rarely load the transformer: challenge only
+    energy_label: [overload_event, evening_peak]
+  challenge:
+    season: [summer]
+    energy_label: [thermal_exposure]

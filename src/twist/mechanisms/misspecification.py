@@ -17,6 +17,7 @@ severity ``level`` ≥ 0 (``0`` reproduces the world exactly, except for ``obser
 from __future__ import annotations
 
 import copy
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
@@ -24,7 +25,7 @@ import numpy as np
 
 from twist.utils import backend as bk
 from twist.utils.backend import Array
-from twist.worlds.base_scm import InnovationProcess, TemporalSCM
+from twist.worlds.base_scm import TemporalSCM
 from twist.worlds.linear_var import LinearVAR, companion_spectral_radius
 from twist.worlds.shifts import perturb_mechanism
 
@@ -146,7 +147,7 @@ def misspecify(world: Any, kind: str, level: float, seed: int = 0) -> TemporalSC
             n = state.noise
             wrong = _clone_with(
                 state,
-                noise=InnovationProcess(n.kind, n.scale, n.correlation, n.heteroscedastic + level),
+                noise=dataclasses.replace(n, heteroscedastic=n.heteroscedastic + level),
             )
         else:
             s = 1.0

@@ -86,7 +86,8 @@ def check_world(
     special = _special_channels(world)
     sys_channels = [i for i in range(k_state) if i not in special]
     self_loops = [i for i in sys_channels if G[i, i, 0]]
-    allows_self = state_world.family == "spring"  # position/velocity self-dynamics are physical
+    # physical self-dynamics (positions/velocities; storage, thermal inertia, deferred demand)
+    allows_self = state_world.family in ("spring", "energy")
     checks.append(
         _check(
             "no_lag1_self_loops",

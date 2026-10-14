@@ -39,6 +39,14 @@ def _mechanism_summary(world: Any) -> list[str]:
             f"- per-node MLP, gain {world.gain}, decay ∈ [{world.decay.min():.2f}, "
             f"{world.decay.max():.2f}]"
         ]
+    if getattr(world, "family", "") == "energy":
+        ph = world.phys
+        return [
+            f"- energy simulator: load {ph['c_load']:.2f} p.u., PV {ph['c_pv']:.2f} p.u. per kW/m², "
+            f"battery {10 * ph['p_max']:.1f} MW / {10 * ph['e_cap']:.1f} MWh, thermal time "
+            f"constant {-1 / np.log(ph['thermal_keep']):.1f} h, rebound {ph['rebound']:.2f}/h; "
+            f"covariates `{world.noise.profiles}`, months {world.noise.months}"
+        ]
     if isinstance(world, RegimeSwitchingSCM):
         radii = [companion_spectral_radius(world.coef[r]) for r in range(2)]
         return [
@@ -115,3 +123,61 @@ def world_card_markdown(world: Any, integrity: dict[str, Any] | None = None) -> 
 
 def _fmt(v: Any) -> str:
     return f"{v:.3g}" if isinstance(v, float) and np.isfinite(v) else str(v)
+
+
+def _descendants(G: np.ndarray, sources: list[int]) -> list[int]:
+    child = np.asarray(np.asarray(G, bool).any(axis=2))  # child[i, j] ⇔ j → i
+    found: set[int] = set()
+    frontier = set(sources)
+    while frontier:
+        kids = {int(i) for j in frontier for i in np.flatnonzero(child[:, j])}
+        frontier = kids - found
+        found |= kids
+    return sorted(found)
+
+
+def domain_action_card(world: Any) -> str:
+    """Domain action card (plan §Week 9, task 4): for every action variable its physical meaning,
+    unit, mutability, limits, delay, cost, side effects and expected causal descendants (from the
+    world graph), plus why the remaining channels are not actionable."""
+    space = world.action_space()
+    names = list(world.variable_names)
+    info = getattr(world, "channel_info", {})
+    G = world.dependency_graph()
+    lines = [
+        f"### Action card — `{world.world_id}`",
+        "",
+        "| action variable | kind | physical meaning | unit | mutable | limits | delay | cost | "
+        "side effects | expected causal descendants |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for c in space.controls.values():
+        hit = [i for i, v in enumerate(c.loadings) if v != 0]
+        desc = sorted(set(hit) | set(_descendants(G, hit)))
+        lines.append(
+            f"| `{c.name}` | control (soft, additive input) | {c.description} | {c.unit} | yes | "
+            f"[{_fmt(float(c.lower))}, {_fmt(float(c.upper))}] | {c.delay} h | "
+            f"{_fmt(float(c.cost))} {c.cost_unit} | {c.side_effects or '–'} | "
+            f"{[names[i] for i in desc]} |"
+        )
+    for i in space.actionable:
+        meaning, unit, _ = info.get(names[i], ("observed channel", "", ""))
+        lo = space.lower[i] if space.lower else None
+        hi = space.upper[i] if space.upper else None
+        lines.append(
+            f"| `{names[i]}` | do() on an observed channel | {meaning} | {unit} | yes | "
+            f"[{_fmt(lo) if lo is not None else '−∞'}, {_fmt(hi) if hi is not None else '∞'}] | 0 h | not modelled | cuts the channel's own mechanism | "
+            f"{[names[j] for j in _descendants(G, [i])]} |"
+        )
+    fixed = [i for i in range(len(names)) if i not in space.actionable]
+    if fixed:
+        lines += [
+            "",
+            "Not actionable: "
+            + "; ".join(
+                f"`{names[i]}` ({info.get(names[i], ('', '', 'not in the action set'))[2] or 'not in the action set'})"
+                for i in fixed
+            )
+            + ".",
+        ]
+    return "\n".join(lines) + "\n"

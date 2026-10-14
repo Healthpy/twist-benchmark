@@ -89,18 +89,24 @@ class AmplitudeBounds(Constraint):
         return self._ok()
 
 
+def _select(x: np.ndarray, channels: list[int] | None) -> np.ndarray:
+    return x if channels is None else x[:, channels]
+
+
 @dataclass
 class StateBounds(Constraint):
-    """Replayed trajectory must stay within ``[lower, upper]``."""
+    """Replayed trajectory must stay within ``[lower, upper]`` (on ``channels``; all if None)."""
 
     lower: float = -np.inf
     upper: float = np.inf
+    channels: list[int] | None = None
     name: str = "state_bounds"
 
     def evaluate(self, factual, action, replayed):
         if replayed is None:
             return self._fail(np.inf, "state bounds require a replayed trajectory")
-        excess = float(max(np.max(replayed - self.upper), np.max(self.lower - replayed), 0.0))
+        r = _select(replayed, self.channels)
+        excess = float(max(np.max(r - self.upper), np.max(self.lower - r), 0.0))
         if excess > FEAS_TOL:
             return self._fail(excess, f"replayed state leaves [{self.lower}, {self.upper}]")
         return self._ok()
@@ -108,13 +114,17 @@ class StateBounds(Constraint):
 
 @dataclass
 class MaxRateOfChange(Constraint):
+    """``|x_t − x_{t−1}| ≤ max_rate`` along the replayed trajectory (on ``channels``; all if None)."""
+
     max_rate: float
+    channels: list[int] | None = None
     name: str = "max_rate_of_change"
 
     def evaluate(self, factual, action, replayed):
         if replayed is None:
             return self._fail(np.inf, "rate constraint requires a replayed trajectory")
-        excess = float(np.max(np.abs(np.diff(replayed, axis=0)) - self.max_rate, initial=0.0))
+        r = _select(replayed, self.channels)
+        excess = float(np.max(np.abs(np.diff(r, axis=0)) - self.max_rate, initial=0.0))
         if excess > FEAS_TOL:
             return self._fail(excess, f"replayed rate of change exceeds {self.max_rate}")
         return self._ok()
@@ -197,11 +207,18 @@ CONSTRAINTS: dict[str, type[Constraint]] = {
 
 
 def build_constraints(specs: list[dict[str, Any]]) -> list[Constraint]:
-    """Instantiate constraints from config entries like ``{"name": "max_duration", "max_timesteps": 5}``."""
+    """Instantiate constraints from config entries like ``{"name": "max_duration", "max_timesteps": 5}``.
+
+    An optional ``id`` renames the instance, so that domain constraints built from a generic class
+    (e.g. ``state_bounds`` on a battery's state of charge) are reported under their own name."""
     out = []
     for spec in specs:
         spec = dict(spec)
-        out.append(CONSTRAINTS[spec.pop("name")](**spec))
+        cid = spec.pop("id", None)
+        c = CONSTRAINTS[spec.pop("name")](**spec)
+        if cid is not None:
+            c.name = str(cid)
+        out.append(c)
     return out
 
 

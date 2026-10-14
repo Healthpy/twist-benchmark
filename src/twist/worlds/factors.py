@@ -18,10 +18,18 @@ readable and the mapping lives in one place.
 | ``missingness`` | none, mcar, block | statespace |
 | ``sampling`` | regular, irregular | statespace |
 | ``confounding`` | none, latent | statespace (latent forces a linear state) |
+| ``pv_penetration`` | low, high | energy (PV per unit of transformer rating) |
+| ``battery`` | small, large | energy (inverter rating; energy = 2 h × rating) |
+| ``season`` | winter, summer, all | energy (months the real covariate windows come from) |
+| ``energy_label`` | overload_event, evening_peak, thermal_exposure | energy (hot-spot outcome) |
 
 Exact-replay families never get latent confounding, missingness or non-identity observation.
 Those factors exist only for the partially observed ``statespace`` family, whose worlds are
 flagged ``exact_abduction: false``.
+
+The semi-synthetic ``energy`` family (``twist.worlds.semi_synthetic``) is a domain bridge, not one
+of the core synthetic families: it has its own physical factors and is listed in
+``DOMAIN_FAMILIES``, so default suites do not include it.
 """
 
 from __future__ import annotations
@@ -31,6 +39,7 @@ from typing import Any
 from twist.config import WorldConfig
 
 FAMILIES = ("linear", "nonlinear", "spring", "regime", "statespace")
+DOMAIN_FAMILIES = ("energy",)
 
 LEVELS: dict[str, tuple[str, ...]] = {
     "lag": ("L1", "L3", "L5"),
@@ -45,6 +54,10 @@ LEVELS: dict[str, tuple[str, ...]] = {
     "missingness": ("none", "mcar", "block"),
     "sampling": ("regular", "irregular"),
     "confounding": ("none", "latent"),
+    "pv_penetration": ("low", "high"),
+    "battery": ("small", "large"),
+    "season": ("winter", "summer", "all"),
+    "energy_label": ("overload_event", "evening_peak", "thermal_exposure"),
 }
 
 APPLICABLE: dict[str, tuple[str, ...]] = {
@@ -64,6 +77,7 @@ APPLICABLE: dict[str, tuple[str, ...]] = {
         "sampling",
         "confounding",
     ),
+    "energy": ("pv_penetration", "battery", "season", "energy_label"),
 }
 
 DEFAULTS: dict[str, str] = {
@@ -79,6 +93,10 @@ DEFAULTS: dict[str, str] = {
     "missingness": "none",
     "sampling": "regular",
     "confounding": "none",
+    "pv_penetration": "low",
+    "battery": "small",
+    "season": "all",
+    "energy_label": "overload_event",
 }
 
 _DENSITY = {"sparse": 0.15, "moderate": 0.25, "dense": 0.5}
@@ -167,6 +185,20 @@ def _label_spec(level: str, T: int) -> dict[str, Any]:
     raise KeyError(level)
 
 
+def _energy_label_spec(level: str, T: int) -> dict[str, Any]:
+    from twist.worlds.semi_synthetic import HOT_SPOT
+
+    if level == "overload_event":  # hot spot above threshold at any hour of the second half
+        return {"type": "onset", "channel": HOT_SPOT, "t_start": T // 2, "t_end": -1}
+    if level == "evening_peak":  # day 2, 15–20 UTC (windows start at 00:00 UTC)
+        if T < 45:
+            raise ValueError("evening_peak needs T ≥ 45 (two days of hourly steps)")
+        return {"type": "onset", "channel": HOT_SPOT, "t_start": 39, "t_end": 44}
+    if level == "thermal_exposure":
+        return {"type": "exposure", "channel": HOT_SPOT, "t_start": -max(T // 4, 2), "t_end": -1}
+    raise KeyError(level)
+
+
 def resolve_world(
     family: str,
     factors: dict[str, str],
@@ -178,12 +210,28 @@ def resolve_world(
     train_frac: float = 0.8,
 ) -> WorldConfig:
     """Map named factor levels to a validated ``WorldConfig`` (missing factors use DEFAULTS)."""
-    if family not in FAMILIES:
+    if family not in FAMILIES + DOMAIN_FAMILIES:
         raise KeyError(f"unknown family {family!r}")
     f = {name: factors.get(name, DEFAULTS[name]) for name in APPLICABLE[family]}
     for name, level in f.items():
         if level not in LEVELS[name]:
             raise ValueError(f"factor {name!r} has no level {level!r}; levels: {LEVELS[name]}")
+    if family == "energy":
+        return WorldConfig(
+            family="energy",
+            world_id=world_id,
+            seed=seed,
+            n_samples=n_samples,
+            train_frac=train_frac,
+            params={
+                "T": T,
+                "pv_penetration": f["pv_penetration"],
+                "battery": f["battery"],
+                "season": f["season"],
+            },
+            noise={"kind": "laplace", "scale": 0.03},
+            label=_energy_label_spec(f["energy_label"], T),
+        )
     noise = dict(_NOISE[f["noise"]])
     label = _label_spec(f["label"], T)
     if family != "statespace":

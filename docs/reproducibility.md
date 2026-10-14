@@ -11,6 +11,15 @@ make toy                # end-to-end toy run
 Containers: `docker build -t twist .` (CPU) or `make container` (Apptainer, for Snellius/HPC).
 On shared nodes set `TWIST_NUM_THREADS` (default 1); under SLURM `SLURM_CPUS_PER_TASK` is used.
 
+## External data (energy bridge)
+
+The semi-synthetic energy worlds read `src/twist/data/energy/opsd_nl_2016_2019.npz`. It is
+shipped in the repository (270 kB, CC-BY 4.0) and verified by SHA-256 on every load. To rebuild it
+from the original Open Power System Data packages (≈ 360 MB download), run
+`python scripts/fetch_energy_profiles.py`. The rebuild must reproduce the recorded SHA-256 in
+`opsd_nl_2016_2019.json`. Energy world cards record the profile hash
+(`profiles_sha256_16`).
+
 ## What every run records
 
 `artifacts/manifest.jsonl` (append-only) gets one `RunManifest` per explainer × reading with:

@@ -5,6 +5,7 @@
 #   sbatch scripts/slurm/multiworld.sbatch experiments/robustness.yaml robustness (Week-7 robustness)
 #   sbatch --cpus-per-task=32 scripts/slurm/multiworld.sbatch experiments/study.yaml study    (Week-8 study)
 #   sbatch --cpus-per-task=10 scripts/slurm/multiworld.sbatch experiments/discovery.yaml discovery  (discovery study)
+#   sbatch --cpus-per-task=5 scripts/slurm/multiworld.sbatch experiments/bridge.yaml bridge  (Week-9 energy bridge)
 # Check the partition, CPU count and time limit against your allocation before submitting.
 #SBATCH --job-name=twist-multiworld
 #SBATCH --partition=rome

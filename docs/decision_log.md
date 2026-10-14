@@ -518,3 +518,112 @@ Decisions that deviate from, or refine, `plan.md`:
 
       Summary F1 mixes precision and recall, which may be why H1 is weak. A recall-based
       dose–response should be pre-declared before it is claimed (Week 10 ablation).
+
+## Week 9 — 2026-10-13 (semi-synthetic energy bridge; protocol v1.2)
+
+1. **Domain: energy** (the plan's recommendation). It has physical constraints, controllable
+   inputs and no clinical-data governance. The world is a distribution transformer with PV, a
+   battery under a default peak-shaving policy, demand response with rebound, an IEC-60076-7-style
+   hot-spot thermal model and an ageing-stress symptom. Docs: `docs/energy_domain.md`.
+2. **Real covariates as root innovations.** Weather and demand forecasts are root channels whose
+   innovations *are* real OPSD Netherlands hourly profiles (2016–2019, CC-BY 4.0).
+   - **Contract kept.** The world is still an additive-noise lagged SCM: abduction recovers the
+     real covariates exactly, and replay never changes them.
+   - **Windows.** Units are 00:00-UTC-aligned windows of consecutive hours (48 h burn-in), so time
+     indices have a fixed time of day.
+   - **Data choices.** PV is derived from irradiance, because the NL solar-generation series
+     collapses in 2019. Demand is the national shape scaled to the feeder.
+   - **Data file.** It is built by `scripts/fetch_energy_profiles.py` (270 kB) and checked by
+     SHA-256 at load.
+3. **Next-hour forecasts keep the SCM strictly lagged.** Exogenous channels hold the forecast for
+   hour `t+1`. Loading at `t` is then a function of `t−1` channels without contemporaneous
+   algebra, and the battery policy acts on forecasts, as a real scheduler would.
+4. **Explicit action variables are controls, not observation edits.**
+   - `u_dispatch`: battery redispatch, grid −u, soc −u/E, delay 0.
+   - `u_dr`: curtailment, grid −u, backlog +u, delay 1, rebound at rate r.
+   - The only actionable observed channel is `grid`, documented as an abstract set-point.
+   - Weather, demand, SoC, backlog, hot spot and stress are not actionable, so observation edits
+     of them are invalid actions.
+   - `ControlChannel` gains `cost`, `cost_unit` and `side_effects` for action cards.
+5. **Physical limits live in domain constraints, not in `F`.** The policy is capped to its own SoC
+   band, but the linear control input map is not. A control can therefore drain or overfill the
+   battery or exceed the inverter rating, and the replayed trajectory shows it. Three domain
+   constraints check this, built from generic classes (new `channels` and `id` options):
+   - `soc_capacity`: 0 ≤ soc ≤ 1;
+   - `battery_c_rate`: |Δsoc| ≤ 0.55/h, with the C-rate fixed at 0.5 via E = 2P so that one
+     threshold serves every world;
+   - `dr_energy_cap`: Σu ≤ 0.8 p.u.·h.
+6. **R6 plans with the constraints it cannot project onto.** OracleActionRecourse previously used
+   them only to choose among candidates. In a first check on one winter world (30 units), that
+   left 21/30 dispatch actions violating SoC capacity, as for the constraint-blind R5 optimizer.
+   R6 now adds `lambda_feas` (100) × squared violations of state-bound, rate and budget
+   constraints to its loss. That raised feasibility to 0.80 and acceptability from 0.23 to 0.37.
+   The penalty is `None` unless such constraints are configured. No earlier configuration
+   configures them, so Weeks 5–8 results are unaffected (the loss is unchanged term for term).
+7. **Family registration.**
+   - `energy` is a `DOMAIN_FAMILY`, outside the default suite families.
+   - Physical self-dynamics are allowed by the integrity check, as for springs.
+   - Noise-law shifts and misspecification now use `dataclasses.replace`, so energy worlds keep
+     their real-profile innovations under shifts.
+   - Each physical parameter is stored as its own array, so `perturb_mechanism` perturbs it
+     relative to its own size.
+8. **Suite `twist_energy_v1`** (seed 2109): 5 dev + 5 hidden-test worlds, 1500 units, T = 50.
+   - Factors: PV low/high, battery small/large, season winter/all, and label
+     overload_event/evening_peak.
+   - Summer and thermal_exposure are reserved for the challenge pool, because summer windows
+     rarely load the transformer: a summer label is a class-balanced "warm day", not an overload.
+   - All 10 worlds pass integrity. Seven candidates were rejected as too similar; functional
+     distance on N(0,1) probes is dominated by the shared structure.
+9. **Recourse target.** The target is "no overload" for units predicted to overload (`target: 0`).
+   A first mini run with the default `target: 1` asked explainers to *cause* overloads.
+10. **Behaviour found while building** (not pre-declared results):
+    - The constraint-blind optimizer avoids evening overloads by overcharging the battery before
+      the peak (SoC > 1).
+    - DR started early raises the peak hot spot (+8.7 °C at t = 30, from rebound). Timed at
+      t = 38 it lowers the peak by 4.6 °C, against 7.8 °C for maximum battery discharge.
+    - The candidate start times are therefore set to t ∈ {25, 35, 38, 40}, aligned with the
+      day-2 evening peak, before the study is run.
+11. **Bridge study design** (`configs/experiments/bridge.yaml`): 5 dev worlds × GRU × 60 units.
+    - Rows: Wachter, NativeGuide, NUN (first-slice readings); the `do(grid)` set-point (R5);
+      dispatch and DR, each R5 constraint-blind and R6 constraint-aware; abstain.
+    - Checks and HE1/HE2 are pre-declared in `twist.evaluation.bridge_report`.
+12. **Domain review (task 5) is pending.** It needs a domain expert. The questionnaire is in
+    `docs/energy_domain.md`.
+13. **Bridge study results** (SLURM job 28014943, 13 min on 5 tasks;
+    `artifacts/bridge/bridge_week9/report/bridge_week9__20261013T142906Z.md`). Design: 5 energy dev
+    worlds × GRU × 60 units predicted to overload, target "no overload". **All three pre-declared
+    checks pass:**
+    - native control actions are scored for all 4 control rows on all 5 worlds;
+    - all 1200 scorable control actions re-replay from their serialized form with 0 hash
+      mismatches;
+    - domain constraints reject 0.99 [0.97, 1.00] of the constraint-blind dispatch's
+      generic-acceptable explanations.
+
+    **Acceptability (ITT), generic → domain constraints:**
+
+    | row | generic | domain | note |
+    |---|---|---|---|
+    | constraint-blind dispatch (R5) | 0.47 [0.28, 0.72] | 0.00 [0.00, 0.01] | 299/300 actions overfill or overdrain the battery |
+    | constraint-aware dispatch (R6) | 0.07 | 0.05 [0.02, 0.08] | |
+    | DR, R5 and R6 | 0.08–0.09 | 0.08–0.09 | DR energy cap violated by 73 (R5) vs 33 (R6) actions, but those actions failed anyway |
+    | abstract `do(grid)` set-point | 0.75 [0.51, 0.97] | 0.75 [0.51, 0.97] | no domain limit applies |
+    | Wachter, NativeGuide, NUN | 0 | 0 | 100% invalid: they edit weather, demand and thermal channels |
+
+    **Both hypotheses are supported:**
+    - **HE1** (R6 − R5 dispatch): +0.047 [+0.020, +0.080];
+    - **HE2** (set-point − R6 dispatch): +0.70 [+0.46, +0.92]. An editable observation overstates
+      achievable recourse by a wide margin.
+14. **Exploratory feasible ceiling** (not pre-declared;
+    `scripts/bridge_feasible_ceiling.py`). Exhaustive single-window,
+    constant-power dispatch was run on the same 300 units: starts 25–46, durations 1–4 h, power
+    ∈ {−1, −½, ¼, ½, ¾, 1}·P.
+    - It averts the overload for 0.77 of units if physics is ignored, but only for **0.21** with
+      SoC and C-rate respected (per world 0.10–0.30).
+    - R6 reaches 0.05, about a quarter of that ceiling. Its classifier-guided optimizer often picks
+      early windows (t = 25) that flip the classifier but not the world.
+    - The binding limit is the battery's energy (2 h at rated power): most successful dispatches
+      need more energy than is stored.
+    - **Implications for Week 10:** report acceptability against this ceiling, and consider an R6
+      planner with a world-outcome objective as the positive control for energy worlds. The
+      Week-8 finding that the R6 positive control falls short repeats here, now for a physical
+      reason.

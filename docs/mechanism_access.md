@@ -71,7 +71,7 @@ wrong mechanism can respond *less* to an intervention than a moderately wrong on
 |---|---|---|---|
 | `GraphActionRecourse` | R2 | ancestors of the outcome (∩ actionable, if known) | no mechanism: the declared action is imposed and nothing propagates in its own proposal |
 | `EstimatedActionRecourse` | R3/R4 (also R5) | all observed channels | plans with `F̂`; actions in observed coordinates are mapped to state channels by the evaluator |
-| `OracleActionRecourse` (control) | R6 | the world's controls (or actionable channels) | projects onto amplitude bounds, max duration and lead time; drops immutable channels; prefers candidates that pass all constraints |
+| `OracleActionRecourse` (control) | R6 | the world's controls (or actionable channels) | projects onto amplitude bounds, max duration and lead time; drops immutable channels; penalises violations of state-bound, rate-of-change and budget constraints in its loss (`lambda_feas`, default 100; v1.2, inactive unless such constraints are configured); prefers candidates that pass all constraints |
 
 All three share the optimizer of the Pearl control: Adam on `CE(h(x̂), y*) + λ‖θ‖²` over candidate
 start times, with point, interval, pulse or control actions.

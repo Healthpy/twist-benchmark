@@ -64,7 +64,16 @@ action_space:
 `x_{t+delay} = F(Pa) + ε + loadings · u_t`. It is a soft intervention that keeps the mechanism and
 the factual innovations. Compile it with `action.compile(world.action_space())`; replay does this
 automatically. `to_schedule(T, k)` raises because there is no world interface. Nonlinear or
-state-dependent actuation is deferred to the Week 4 state-space worlds and the Week 9 bridge.
+state-dependent actuation is not modelled by the input map.
+
+Domain action cards (Week 9) use three more optional fields:
+- `cost` per unit of `|u|` per step, with `cost_unit`;
+- `side_effects`, as free text.
+
+The semi-synthetic `energy` worlds declare two controls, `u_dispatch` (battery redispatch) and
+`u_dr` (demand response with one hour of notice), with these fields filled in. See
+[`energy_domain.md`](energy_domain.md); `twist.reporting.benchmark_cards.domain_action_card`
+renders the card.
 
 ## Action plan (the auditable wrapper)
 
@@ -117,7 +126,10 @@ method's claim.
   `(factual, schedule, replayed trajectory)` and return `ConstraintResult(passed, violation,
   message)`: `immutable_variables`, `amplitude_bounds`, `state_bounds`, `max_rate_of_change`,
   `intervention_budget`, `max_duration`, `min_lead_time`, `forbidden_combination`. They are
-  configured in experiment YAML as `{name: ..., <params>}`.
+  configured in experiment YAML as `{name: ..., <params>}`. `state_bounds` and
+  `max_rate_of_change` take an optional `channels` list. An optional `id` renames the instance, so
+  a domain constraint built from a generic class is reported under its own name, e.g.
+  `{name: state_bounds, id: soc_capacity, channels: [4], lower: 0, upper: 1}`.
 
 ## Costs versus do-complexity
 

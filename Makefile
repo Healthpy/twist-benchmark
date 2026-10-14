@@ -4,7 +4,7 @@ UV      ?= uv
 CONFIG  ?= experiments/toy.yaml
 export TWIST_NUM_THREADS ?= 1
 
-.PHONY: help install lint format typecheck test test-fast smoke toy controls sanity audit suite-dev suite-pilot pilot ladder robustness validity study study-report discovery compat check clean-artifacts container
+.PHONY: help install lint format typecheck test test-fast smoke toy controls sanity audit suite-dev suite-pilot pilot ladder robustness validity study study-report discovery suite-energy bridge compat check clean-artifacts container
 
 help:  ## show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -72,6 +72,12 @@ study-report:  ## rebuild the study report from finished runs
 
 discovery:  ## causal-discovery study: discovered graphs as mechanism source (SLURM recommended)
 	$(PY) -m twist.cli discovery --config experiments/discovery.yaml
+
+suite-energy:  ## build the Week-9 semi-synthetic energy suite (real NL covariates)
+	$(PY) -m twist.cli build-suite --config suites/energy.yaml
+
+bridge:  ## Week-9 energy domain bridge study (SLURM recommended)
+	$(PY) -m twist.cli bridge --config experiments/bridge.yaml
 
 compat:  ## regenerate docs/compatibility_matrix.md from explainer metadata
 	$(PY) -m twist.cli compat

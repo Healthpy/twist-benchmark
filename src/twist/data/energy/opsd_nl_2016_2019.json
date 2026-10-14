@@ -1,0 +1,20 @@
+{
+  "name": "opsd_nl_2016_2019",
+  "hours": 35064,
+  "start_utc": "2016-01-01 00:00:00+00:00",
+  "end_utc": "2019-12-31 23:00:00+00:00",
+  "load_mean_mw": 13017.943759981748,
+  "sources": {
+    "time_series": "https://data.open-power-system-data.org/time_series/2020-10-06/time_series_60min_singleindex.csv",
+    "weather_data": "https://data.open-power-system-data.org/weather_data/2020-09-16/weather_data.csv",
+    "columns": [
+      "NL_load_actual_entsoe_transparency",
+      "NL_temperature",
+      "NL_radiation_direct_horizontal",
+      "NL_radiation_diffuse_horizontal"
+    ]
+  },
+  "license": "CC-BY 4.0 (Open Power System Data; ENTSO-E Transparency; MERRA-2 via OPSD)",
+  "citation": "Open Power System Data. 2020. Data Package Time series / Weather Data. Versions 2020-10-06 / 2020-09-16. https://doi.org/10.25832/time_series/2020-10-06, https://doi.org/10.25832/weather_data/2020-09-16",
+  "arrays_sha256": "069b27dd78bb0e6ae6e3ff6c432522ffff49343aa0f4befcc9f50370bebc93dd"
+}

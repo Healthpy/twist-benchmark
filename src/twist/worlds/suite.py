@@ -363,6 +363,26 @@ def dataset_card_markdown(manifest: dict[str, Any]) -> str:
         "- These worlds define causal truth by construction. They are evaluation oracles, not "
         "models of any real domain.",
     ]
+    if "energy" in fams:
+        import json
+
+        from twist.worlds.semi_synthetic import DATA_DIR
+
+        names = {e.get("profiles", "opsd_nl_2016_2019") for e in worlds}
+        for name in sorted(names):
+            meta_path = DATA_DIR / f"{name}.json"
+            if meta_path.exists():
+                meta = json.loads(meta_path.read_text())
+                lines += [
+                    f"- `energy` worlds are semi-synthetic: their exogenous channels are real "
+                    f"hourly covariates `{name}` ({meta['start_utc']} – {meta['end_utc']}, "
+                    f"{meta['hours']} h; SHA-256 `{meta['arrays_sha256'][:16]}`). License: "
+                    f"{meta['license']}. Cite: {meta['citation']}",
+                    "- The transformer, battery, policy and demand-response dynamics are an "
+                    "explicit simulator; the real covariates make the inputs realistic, not the "
+                    "causal mechanism. Units of one world share calendar days, so train and test "
+                    "units can overlap in their covariates (not in their innovations).",
+                ]
     return "\n".join(lines) + "\n"
 
 

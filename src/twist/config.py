@@ -21,7 +21,7 @@ class _Strict(BaseModel):
 
 
 class WorldConfig(_Strict):
-    family: Literal["linear", "nonlinear", "spring", "regime", "statespace"]
+    family: Literal["linear", "nonlinear", "spring", "regime", "statespace", "energy"]
     world_id: str
     seed: int
     n_samples: int = 10_000

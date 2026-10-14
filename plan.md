@@ -1227,6 +1227,24 @@ Hypotheses, reported with CIs:
 - H1: recourse success increases with graph F1;
 - H2: not knowing the graph costs world success (PCMCI at α = 0.01).
 
+#### Status of tasks 1–5 (2026-10-13)
+
+*Implemented:* family `energy` (`twist.worlds.semi_synthetic`), suite `twist_energy_v1`
+(`configs/suites/energy.yaml`), bridge study `twist bridge` (`configs/experiments/bridge.yaml`,
+`twist.evaluation.bridge_report`), and docs in `docs/energy_domain.md`.
+
+| Task | What was built |
+|---|---|
+| 1 | Transformer + PV + battery (default peak-shaving policy) + demand response (rebound) + IEC-style hot-spot model. Controls `u_dispatch` and `u_dr`; storage, C-rate and DR-energy constraints |
+| 2 | Real OPSD NL weather and demand covariates (2016–2019) as root innovations; simulated dynamics |
+| 3 | Labels: overload event, evening peak, thermal exposure |
+| 4 | Action cards generated per world |
+| 5 | Questionnaire written; the expert review itself is still open |
+
+**Study result** (`bridge_week9`): 3/3 checks pass; HE1 and HE2 are supported. Domain constraints
+reject 99% of the constraint-blind dispatches that avert an overload. Details are in the decision
+log, Week 9, items 13–14.
+
 #### 1. Define the domain state and action model
 
 For energy, use:

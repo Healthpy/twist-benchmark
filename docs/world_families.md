@@ -16,7 +16,17 @@ structure, action space, replay disclosure and integrity results.
 | `regime` | `x_t = F_{r_t}(x_{t−L:t}) + s·η`, two linear regimes | yes (regime is a function of observed past) | lag, density, strength, stability, regime driver (state: `r_t = 1{w·x_{t−1} > 0}`; exogenous: observed AR(1) driver channel, not actionable) |
 | `statespace` | any of the above as latent state `z`, observed `x = H(z) + ν` with LOCF | **no** (oracle replay from stored exogenous) | state family, observation (noisy / saturating nonlinear / partial), missingness (MCAR / block), sampling (regular / irregular), confounding (latent AR(1) confounder of label and distractor, hidden) |
 
-All families share:
+**Domain bridge (Week 9).**
+
+| Family | State equation | Exact abduction from `x` | Factor knobs |
+|---|---|---|---|
+| `energy` | semi-synthetic distribution transformer: real NL weather/demand covariates as root innovations; battery with a default peak-shaving policy; demand response with rebound; IEC-style hot-spot thermal model; ageing stress (distractor). Native controls `u_dispatch`, `u_dr` | yes | pv_penetration, battery, season, energy_label |
+
+`energy` is listed in `DOMAIN_FAMILIES`, not `FAMILIES`, so default suites do not include it. Its
+own noise model, mechanism, constraints and claim boundary are described in
+[`energy_domain.md`](energy_domain.md).
+
+All synthetic families share:
 
 - **Noise** — Gaussian, Laplace, heteroscedastic (`s_i = 1 + h·tanh|x^i_{t−1}|`, exogenous `η`
   still exactly abducted) or equicorrelated across channels.

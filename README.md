@@ -15,11 +15,15 @@ innovations. For trajectory-only methods, a registered benchmark reading of the 
 replayed instead. The gap between "the model agrees" and "the world agrees" is then measured
 directly and decomposed.
 
-> **Status.** Weeks 1–8 of the 12-week plan are implemented: the benchmark core, baselines,
-> mechanism access, robustness, statistics and validity. Causal discovery (PCMCI, VAR-LiNGAM) has
-> since been added as an R4 mechanism source. The evaluation protocol is at **v1.1**
-> ([`docs/evaluation_protocol.md`](docs/evaluation_protocol.md)). Weeks 9–12 (discovery study,
-> realism bridge, full campaign, release) are next.
+> **Status.** Weeks 1–9 of the 12-week plan are implemented:
+> - the benchmark core, baselines, mechanism access, robustness, statistics and validity;
+> - causal discovery (PCMCI, VAR-LiNGAM) as an R4 mechanism source;
+> - a semi-synthetic **energy domain bridge** with explicit action variables (battery dispatch,
+>   demand response), domain feasibility constraints and real Dutch weather and demand
+>   covariates.
+>
+> The evaluation protocol is at **v1.2** ([`docs/evaluation_protocol.md`](docs/evaluation_protocol.md)).
+> Weeks 10–12 (full campaign, analysis, release) are next.
 
 ## Contents
 
@@ -149,13 +153,16 @@ twist validity --config experiments/validity.yaml     # Week 8: construct/discri
 twist study --config experiments/study.yaml           # Week 8: pilot multi-world study (paired statistics)
 twist study --config experiments/study.yaml --report-only   # rebuild the study report from finished runs
 twist discovery --config experiments/discovery.yaml   # causal discovery as a mechanism source (graph vs recourse)
+twist build-suite --config suites/energy.yaml         # Week 9: semi-synthetic energy suite (real NL covariates)
+twist bridge --config experiments/bridge.yaml         # Week 9: energy domain bridge (controls, domain constraints)
 twist compat                                          # regenerate the explainer compatibility matrix
 ```
 
 Config paths resolve relative to `configs/`. Multi-world commands are resumable: a task is reused
 only when both its config hash and the code fingerprint match. `make help` lists all targets:
 `install, lint, format, typecheck, test, test-fast, smoke, toy, controls, sanity, audit, suite-dev,
-suite-pilot, pilot, ladder, robustness, validity, study, study-report, discovery, compat, check,
+suite-pilot, pilot, ladder, robustness, validity, study, study-report, discovery, suite-energy,
+bridge, compat, check,
 clean-artifacts, container`.
 
 ## What the benchmark contains
@@ -163,6 +170,7 @@ clean-artifacts, container`.
 | Component | Contents | Docs |
 |---|---|---|
 | **Worlds** | Five families: linear VAR, nonlinear SCM, spring system, regime-switching, and partially observed state-space. A generator varies 12 factors (lag, density, strength, stability, noise law, label type, observation, missingness, sampling, confounding, …). Labels are threshold, exposure, onset or multi-output. Splits are dev/val/test/challenge, with hidden test/challenge mechanisms. Every world passes integrity checks (causal route, distractor, contractivity, diversity). | [`world_families.md`](docs/world_families.md), [`dataset_card.md`](docs/dataset_card.md) |
+| **Domain bridge** | Semi-synthetic `energy` family: a distribution transformer with PV, a battery under a peak-shaving policy, and demand response with rebound. Inputs are real OPSD Netherlands weather and demand (2016–2019, CC-BY 4.0) entering as root innovations, and the outcome is an IEC-style hot-spot overload. It has native controls with action cards (meaning, unit, limits, delay, cost, side effects, descendants) and domain constraints (battery capacity, C-rate, DR energy cap). | [`energy_domain.md`](docs/energy_domain.md) |
 | **Actions** | Point, schedule, interval, parametric pulse and high-level control, all compiled to a dense `(mask, value, shift)` replay contract. Feasibility constraints and costs are included. | [`action_schema.md`](docs/action_schema.md) |
 | **Replay** | Exact abduction for additive-noise worlds, with Pearl replay, noiseless rollout and the interventional distribution. Partially observed worlds use an oracle replay from stored exogenous variables. | [`evaluation_protocol.md`](docs/evaluation_protocol.md) §2 |
 | **Readings** | `native` (declared action), or five diagnostic readings of trajectory-only proposals: first slice, first segment, sparse segmentation, pulse fit, full schedule. | [`native_vs_reconstructed_actions.md`](docs/technical_notes/native_vs_reconstructed_actions.md) |
@@ -200,6 +208,7 @@ under `artifacts/`.
 | 6 | **Mechanism-access ladder:** world success rises from 0.13–0.21 (R0/R1 baselines) to 0.65 (R2 graph), 0.92–0.96 (R3/R4 estimated mechanisms) and 0.97–0.98 (R5/R6 oracle). Baselines fail mostly by replay mismatch, and misspecification degrades C. |
 | 7 | **Robustness:** mechanism shifts hurt precise action-native plans most; the oracle drops from 0.97 to 0.42–0.64. The CI-aware brittleness verdict flags R4-Lasso, R6-oracle and Pearl recourse, and clears the other six methods. Innovation, observation and decision shifts move C by ≤ 0.1. |
 | 8 | **Validity:** all five construct-validity pairs and all four discriminant tests pass (`artifacts/validity/`). **Pilot study** (25 worlds): the model–world gap replicates in 25/25 worlds; 2/4 pre-declared checks pass (details below). |
+| 9 | **Energy bridge** (5 semi-synthetic worlds, real NL covariates; `artifacts/bridge/`): 3/3 checks pass. Domain constraints reject 99% of the constraint-blind battery dispatches that avert an overload: they overfill or overdrain the battery. Constraint-aware planning raises acceptability only to 0.05 (+0.047 [+0.020, +0.080], HE1). An abstract `do(grid)` set-point looks acceptable 0.75 of the time (realizability gap +0.70, HE2). Trajectory baselines are 100% invalid because they edit weather and demand. Exploratory: the feasible single-window dispatch ceiling is 0.21. |
 | 8b | **Causal discovery** (10 worlds; `artifacts/discovery/`): PCMCI, VAR-LiNGAM and Lasso recover the graph with F1 0.64–0.72. Planning on a PCMCI graph instead of the true one costs +0.24 [+0.06, +0.42] world success (paired; H2 supported). Graph F1 alone does not predict success (H1 not supported). In exploratory analysis, missing edges hurt and spurious ones barely do. |
 
 ### Week-8 pilot multi-world study
@@ -257,21 +266,22 @@ partition, account and time limit against your allocation before submitting.
 configs/              worlds/, classifiers/, explainers/, experiments/, suites/
 src/twist/
   actions/            action classes, dense schedules, readings (adapters), feasibility, costs
-  worlds/             SCM base, five families, labels, shifts, generator factors, suites, integrity
+  worlds/             SCM base, five families + semi-synthetic energy, labels, shifts, factors, suites, integrity
+  data/energy/        real NL weather/demand profiles (OPSD, CC-BY 4.0) with provenance JSON
   replay/             abduction, Pearl replay, noiseless rollout, interventional sampling
   classifiers/        GRU/LSTM/TCN/Transformer/logistic classifiers and training
-  mechanisms/         estimators (masked, Lasso VAR, neural), quality, misspecification
+  mechanisms/         estimators (masked, Lasso VAR, neural), causal discovery, quality, misspecification
   explainers/         base API, budgets, regimes R0–R6, baseline adapters, controls, action-native recourse
   metrics/            conventional, mechanism, outcome, traceability, robustness, sensitivity, aggregation
   evaluation/         protocol, paired + multi-world runners, audit, sanity, pilot/ladder/robustness
-                      reports, statistical_analysis, validity, study
+                      reports, statistical_analysis, validity, study, discovery, bridge
   reporting/          certificates, benchmark cards, compatibility matrix, tables, figures
   utils/              seeds/threads, logging, serialization/hashing/fingerprints
-scripts/              CLI wrappers and SLURM batch scripts
+scripts/              CLI wrappers, SLURM batch scripts, energy-profile fetcher
 tests/                worlds, replay, actions, metrics, controls, mechanisms, robustness,
                       evaluation (statistics, validity, study), reproducibility
 artifacts/            generated suites, runs and reports (git-ignored)
-docs/                 protocol v1.0, specifications, cards, decision log
+docs/                 protocol v1.2, specifications, cards, energy domain, decision log
 paper/                figures, tables, appendix, results manifest
 ```
 
@@ -282,6 +292,7 @@ paper/                figures, tables, appendix, results manifest
 - [`docs/world_families.md`](docs/world_families.md): world families, generator factors, labels, integrity checks, splits.
 - [`docs/action_schema.md`](docs/action_schema.md): action kinds, serialization, control interfaces.
 - [`docs/mechanism_access.md`](docs/mechanism_access.md): R0–R6, estimators, misspecification, action-native recourse, failure attribution.
+- [`docs/energy_domain.md`](docs/energy_domain.md): the energy bridge — data provenance, mechanism, action cards, domain constraints, claim boundary, domain-review questionnaire.
 - [`docs/robustness.md`](docs/robustness.md): shifts, stability, tolerance sensitivity, uncertainty, brittleness.
 - [`docs/compatibility_matrix.md`](docs/compatibility_matrix.md): explainer metadata, generated by `twist compat`.
 - [`docs/technical_notes/native_vs_reconstructed_actions.md`](docs/technical_notes/native_vs_reconstructed_actions.md): how to read results across readings.
@@ -301,7 +312,7 @@ paper/                figures, tables, appendix, results manifest
 | 6 | Mechanism-access ladder, estimators, action-native recourse, misspecification | **done**: 3/3 checks |
 | 7 | Shifts, stability, tolerance sensitivity, uncertainty, robustness | **done**: 3/3 checks |
 | 8 | Statistical protocol, benchmark validity, pilot multi-world study, protocol v1.0 | **done**: validity 9/9; study checks 2/4 (two controls fail on the CI rule; see results) |
-| 9 | Causal discovery as a mechanism source; semi-synthetic realism bridge | discovery done: 3/3 checks; not knowing the graph costs +0.24 world success (PCMCI, paired CI > 0). Bridge pending |
+| 9 | Causal discovery as a mechanism source; semi-synthetic realism bridge | **done**: discovery 3/3 checks (+0.24 cost of not knowing the graph); energy bridge 3/3 checks, HE1 and HE2 supported. Domain-expert review pending |
 | 10–12 | Full experiments, analysis, publication package | not started |
 
 The TSCausalCF method is being developed separately and will plug in through the explainer API.

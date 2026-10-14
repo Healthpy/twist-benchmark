@@ -10,6 +10,7 @@ from twist.worlds.labels import make_label
 from twist.worlds.linear_var import LinearVAR, make_linear_var
 from twist.worlds.nonlinear_scm import NonlinearMLPSCM, make_nonlinear_scm
 from twist.worlds.regime_switching import RegimeSwitchingSCM, make_regime_scm
+from twist.worlds.semi_synthetic import EnergyGridSCM, make_energy_grid
 from twist.worlds.spring_system import SpringSystem, make_spring_system
 from twist.worlds.state_space import ObservedSCM, make_statespace
 
@@ -19,6 +20,7 @@ WORLD_FAMILIES: dict[str, Any] = {
     "spring": SpringSystem,
     "regime": RegimeSwitchingSCM,
     "statespace": ObservedSCM,
+    "energy": EnergyGridSCM,
 }
 
 
@@ -35,6 +37,7 @@ _FACTORIES: dict[str, Callable[..., Any]] = {
     "spring": make_spring_system,
     "regime": make_regime_scm,
     "statespace": make_statespace,
+    "energy": make_energy_grid,
 }
 
 

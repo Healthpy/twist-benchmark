@@ -24,8 +24,11 @@ import numpy as np
 from twist.actions.feasibility import (
     AmplitudeBounds,
     ImmutableVariables,
+    InterventionBudget,
     MaxDuration,
+    MaxRateOfChange,
     MinLeadTime,
+    StateBounds,
     check_feasibility,
 )
 from twist.actions.schemas import ActionSpace
@@ -92,7 +95,9 @@ class EstimatedActionRecourse(_SCMRecourse):
 class OracleActionRecourse(_SCMRecourse):
     """R6 positive control: oracle mechanism plus the action model (controls, actionable set,
     bounds) and the feasibility constraints. It plans within the constraints it can project onto
-    (amplitude, duration, lead time, immutability) and prefers candidates that pass all of them."""
+    (amplitude, duration, lead time, immutability), penalises violations of the trajectory and
+    budget constraints it cannot project onto (state bounds, rate of change, intervention budget;
+    weight ``lambda_feas``, default 100) and prefers candidates that pass all of them."""
 
     name = "OracleActionRecourse"
     min_regime = "R6"
@@ -112,6 +117,41 @@ class OracleActionRecourse(_SCMRecourse):
             elif isinstance(c, MinLeadTime):
                 lim["latest_start"] = min(lim.get("latest_start", 10**9), c.t_label - c.min_lead)
         return lim
+
+    def _penalty(self, ctx: ExplainerContext) -> Any:
+        soft = [
+            c
+            for c in ctx.constraints
+            if isinstance(c, (StateBounds, MaxRateOfChange, InterventionBudget))
+        ]
+        if not soft:
+            return None
+        import torch
+
+        lam = float(self.params.get("lambda_feas", 100.0))
+
+        def sel(z, channels):
+            return z if channels is None else z[:, :, list(channels)]
+
+        def penalty(x, x_hat, mask, value, shift):
+            total = torch.zeros((), dtype=x_hat.dtype)
+            for c in soft:
+                if isinstance(c, StateBounds):
+                    z = sel(x_hat, c.channels)
+                    v = torch.relu(z - c.upper) + torch.relu(c.lower - z)
+                elif isinstance(c, MaxRateOfChange):
+                    z = sel(x_hat, c.channels)
+                    v = torch.relu((z[:, 1:] - z[:, :-1]).abs() - c.max_rate)
+                else:
+                    a = torch.where(torch.as_tensor(mask), value - x, shift).abs()
+                    w = torch.ones(a.shape[-1], dtype=a.dtype)
+                    if c.unit_costs is not None:
+                        w = torch.as_tensor(c.unit_costs, dtype=a.dtype)
+                    v = torch.relu((a * w).sum(dim=(1, 2)) - c.budget)
+                total = total + (v**2).reshape(len(v), -1).sum(1).mean()
+            return lam * total
+
+        return penalty
 
     def _action_space(self, ctx: ExplainerContext, T: int, k: int) -> ActionSpace:
         assert ctx.world is not None

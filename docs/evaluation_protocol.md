@@ -1,4 +1,4 @@
-# TWIST evaluation protocol — v1.1 (Week 8; v1.1 adds causal discovery)
+# TWIST evaluation protocol — v1.2 (Week 8; v1.1 adds causal discovery; v1.2 the energy bridge)
 
 Status: **v1.0, frozen for the full experiments (Weeks 9–12).** v0.1 (Week 1) was frozen for
 Weeks 2–7. v1.0 folds in the decisions recorded in [`decision_log.md`](decision_log.md) for Weeks 2–8:
@@ -14,6 +14,16 @@ Later changes are logged with a version bump.
 **v1.1 (2026-10-07).** Adds causal-discovery R4 estimators: PCMCI, VAR-LiNGAM, and controlled
 graph corruption. Adds a `fit` option on masked estimators, lagged graph-recovery metrics, and the
 discovery study (§4). Nothing measured under v1.0 changes.
+
+**v1.2 (2026-10-13).** Adds the semi-synthetic `energy` family and the domain bridge study (§9a).
+It also adds:
+- channel-restricted `state_bounds` / `max_rate_of_change` and constraint `id`s;
+- action-card fields on controls;
+- a violation penalty in OracleActionRecourse (R6) for state, rate and budget constraints. The
+  penalty is inactive unless those constraints are configured, and no earlier configuration
+  configures them.
+
+Nothing measured under v1.0–v1.1 changes.
 
 ## 1. Purpose
 
@@ -319,6 +329,25 @@ expected direction, and the held one must not differ.
 
 The Week-8 report passes all nine tests on five exact dev worlds (`docs/decision_log.md`, Week 8).
 
+## 9a. Domain bridge (Week 9)
+
+`twist bridge` (`twist.evaluation.bridge_report`, `configs/experiments/bridge.yaml`) runs the
+semi-synthetic energy worlds ([`energy_domain.md`](energy_domain.md)). Every explanation is scored
+for **acceptability**: a scorable action reaches the world target under oracle replay and passes
+the constraint set (ITT). It is scored twice: under the generic constraints alone, and under
+generic + domain constraints.
+
+Pre-declared checks:
+1. every control row has scorable native control actions on every world;
+2. every scorable control action replays from its serialized form to the stored replay hash;
+3. among the constraint-blind dispatch's generic-acceptable explanations, the share rejected by a
+   domain constraint has a world-bootstrap CI above 0.
+
+Hypotheses, reported with CIs:
+- **HE1:** constraint-aware (R6) > constraint-blind (R5) dispatch in domain acceptability;
+- **HE2:** the abstract `do(grid)` set-point > constraint-aware dispatch (the realizability gap
+  of observation-level actions).
+
 ## 10. Implementation conventions
 
 | Topic | Convention |
@@ -341,7 +370,9 @@ The Week-8 report passes all nine tests on five exact dev worlds (`docs/decision
 ## 11. Limitations and claim boundaries
 
 - Synthetic worlds define causal truth **by construction**; they say nothing about whether any real
-  domain follows these mechanisms.
+  domain follows these mechanisms. The semi-synthetic energy worlds use real covariates, but their
+  dynamics are a simulator; bridge results are not evidence about real grids
+  ([`energy_domain.md`](energy_domain.md#claim-boundary)).
 - Readings for trajectory-only methods are benchmark diagnostics, not semantics attributed to their
   authors.
 - `D` depends on the observed-variable representation and on the change tolerance.

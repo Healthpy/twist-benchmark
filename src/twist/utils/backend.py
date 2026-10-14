@@ -57,3 +57,16 @@ def einsum(spec: str, *ops: Array) -> Array:
         ref = next(o for o in ops if is_torch(o))
         return torch.einsum(spec, *[o if is_torch(o) else as_like(o, ref) for o in ops])
     return np.einsum(spec, *ops)
+
+
+def softplus(x: Array) -> Array:
+    """``log(1 + exp(x))``, overflow-safe on both backends."""
+    return torch.nn.functional.softplus(x) if is_torch(x) else np.logaddexp(0.0, x)
+
+
+def sigmoid(x: Array) -> Array:
+    return 0.5 * (1.0 + tanh(0.5 * x))
+
+
+def relu(x: Array) -> Array:
+    return 0.5 * (x + abs(x))

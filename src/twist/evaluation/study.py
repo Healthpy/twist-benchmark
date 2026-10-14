@@ -113,6 +113,13 @@ def load_study_records(run_dirs: list[Path]) -> tuple[list[dict], list[dict]]:
                 continue
             s = {k: r.get(k) for k in KEEP}
             s["cost"] = (r.get("costs") or {}).get("magnitude")
+            s["constraints_failed"] = [
+                c["name"]
+                for c in (r.get("feasibility") or {}).get("results", [])
+                if not c["passed"]
+            ]
+            s["replay_hash"] = r.get("replay_hash")
+            s["action"] = r.get("action")
             s["T"] = T
             s["action_semantics"] = r.get("action_semantics")
             cls = EXPLAINERS.get(r["explainer"].split("[")[0])
